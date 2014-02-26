@@ -46,7 +46,7 @@ echo "$SPARK_DOWNLOAD_URL" > ~ubuntu/spark_url.txt
 mv $extract_folder ~ubuntu/spark
 chown -R ubuntu:ubuntu ~ubuntu/spark
 
-#dd if=/dev/zero of=~ubuntu/nullfile bs=100 count=1048576
+dd if=/dev/zero of=~ubuntu/nullfile bs=100 count=1048576
 
 popd
 rm -Rf $tmp_dir
