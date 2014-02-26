@@ -17,7 +17,7 @@ if [ -z "$SPARK_DOWNLOAD_URL" ]; then
   if [ -z "$DIB_SPARK_VERSION" ]; then
     case "$DIB_HADOOP_VERSION" in
       2.0.0-mr1-cdh4.5.0)
-        DIB_SPARK_VERSION=0.8.1
+        DIB_SPARK_VERSION=0.9.0
         SPARK_HADOOP_DL=cdh4
         ;;
       *)
@@ -46,7 +46,7 @@ echo "$SPARK_DOWNLOAD_URL" > ~ubuntu/spark_url.txt
 mv $extract_folder ~ubuntu/spark
 chown -R ubuntu:ubuntu ~ubuntu/spark
 
-dd if=/dev/zero of=~ubuntu/nullfile bs=100 count=1048576
+#dd if=/dev/zero of=~ubuntu/nullfile bs=100 count=1048576
 
 popd
 rm -Rf $tmp_dir
