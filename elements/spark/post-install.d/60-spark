@@ -41,12 +41,11 @@ extract_folder=$(tar tzf $spark_file | sed -e 's@/.*@@' | uniq)
 echo "Decompressing Spark..."
 tar xzf $spark_file
 rm $spark_file
-echo "$SPARK_DOWNLOAD_URL" > ~ubuntu/spark_url.txt
 
-mv $extract_folder ~ubuntu/spark
-chown -R ubuntu:ubuntu ~ubuntu/spark
-
-dd if=/dev/zero of=~ubuntu/nullfile bs=100 count=1048576
+# Placing spark in /opt/spark
+mv $extract_folder /opt/spark
+chown -R ubuntu:ubuntu /opt/spark
+echo "$SPARK_DOWNLOAD_URL" > /opt/spark/spark_url.txt
 
 popd
 rm -Rf $tmp_dir
