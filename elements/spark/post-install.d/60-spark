@@ -44,6 +44,7 @@ tar xzf $spark_file
 rm $spark_file
 
 # Placing spark in /opt/spark
+mkdir /opt/spark/
 mv $extract_folder /opt/spark
 chown -R ubuntu:ubuntu /opt/spark
 echo "$SPARK_DOWNLOAD_URL" > /opt/spark/spark_url.txt
