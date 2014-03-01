@@ -30,6 +30,7 @@ if [ -z "$SPARK_DOWNLOAD_URL" ]; then
   SPARK_DOWNLOAD_URL="http://www.apache.org/dist/incubator/spark/spark-$DIB_SPARK_VERSION-incubating/spark-$DIB_SPARK_VERSION-incubating-bin-$SPARK_HADOOP_DL.tgz"
 fi
 
+echo "Downloading SPARK"
 wget "$SPARK_DOWNLOAD_URL"
 if [ $? -ne 0 ]; then
    echo -e "Could not download spark.\nAborting"
