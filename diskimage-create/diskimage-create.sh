@@ -30,7 +30,7 @@ echo "Selected Savanna plugin $PLUGIN"
 # Export variables for elements
 if [ $PLUGIN = "spark" ]; then
   # WAS: export DIB_HADOOP_VERSION="2.0.0-mr1-cdh4.5.0"
-  export DIB_HADOOP_VERSION="cdh4"
+  export DIB_HADOOP_VERSION="CDH4"
 elif [ $PLUGIN = "vanilla" ]; then
   export DIB_HADOOP_VERSION=${DIB_HADOOP_VERSION:-"1.2.1"}
   export fedora_image_name="fedora_savanna_latest"

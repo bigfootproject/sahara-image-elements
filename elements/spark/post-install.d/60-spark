@@ -14,7 +14,7 @@ if [ -z "$SPARK_DOWNLOAD_URL" ]; then
   # INFO on hadoop versions: http://spark.incubator.apache.org/docs/latest/hadoop-third-party-distributions.html
   if [ -z "$DIB_SPARK_VERSION" ]; then
     case "$DIB_HADOOP_VERSION" in
-      cdh4)
+      CDH4)
         DIB_SPARK_VERSION=0.9.0
         SPARK_HADOOP_DL=cdh4
         ;;
