@@ -11,12 +11,10 @@ pushd $tmp_dir
 # The user is not providing his own Spark distribution package
 if [ -z "$SPARK_DOWNLOAD_URL" ]; then
   # Check hadoop version
-  # pietro: we know for sure that spark 0.8.1 works on CDH 4.5.0 mr1,
-  # other combinations need testing
   # INFO on hadoop versions: http://spark.incubator.apache.org/docs/latest/hadoop-third-party-distributions.html
   if [ -z "$DIB_SPARK_VERSION" ]; then
     case "$DIB_HADOOP_VERSION" in
-      2.0.0-mr1-cdh4.5.0)
+      cdh4)
         DIB_SPARK_VERSION=0.9.0
         SPARK_HADOOP_DL=cdh4
         ;;
@@ -30,19 +28,21 @@ if [ -z "$SPARK_DOWNLOAD_URL" ]; then
   SPARK_DOWNLOAD_URL="http://www.apache.org/dist/incubator/spark/spark-$DIB_SPARK_VERSION-incubating/spark-$DIB_SPARK_VERSION-incubating-bin-$SPARK_HADOOP_DL.tgz"
 fi
 
-echo "Downloading SPARK"
+echo "DOWNLOADING SPARK"
 wget "$SPARK_DOWNLOAD_URL"
 if [ $? -ne 0 ]; then
    echo -e "Could not download spark.\nAborting"
    exit 1
 fi
 
+echo "EXTRACTING SPARK"
 spark_file=$(basename "$SPARK_DOWNLOAD_URL")
 extract_folder=$(tar tzf $spark_file | sed -e 's@/.*@@' | uniq)
 echo "Decompressing Spark..."
 tar xzf $spark_file
 rm $spark_file
 
+echo "MOVING SPARK TO /OPT/"
 # Placing spark in /opt/spark
 mkdir /opt/spark/
 mv $extract_folder /opt/spark
