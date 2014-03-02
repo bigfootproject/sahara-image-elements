@@ -31,6 +31,7 @@ echo "Selected Savanna plugin $PLUGIN"
 if [ $PLUGIN = "spark" ]; then
   # WAS: export DIB_HADOOP_VERSION="2.0.0-mr1-cdh4.5.0"
   export DIB_HADOOP_VERSION="CDH4"
+  echo "SETTING CDH4 FOR SPARK"
 elif [ $PLUGIN = "vanilla" ]; then
   export DIB_HADOOP_VERSION=${DIB_HADOOP_VERSION:-"1.2.1"}
   export fedora_image_name="fedora_savanna_latest"
@@ -146,6 +147,7 @@ fi
 # HDP does not support an Ubuntu image
 if [ $PLUGIN != "hdp"  ]; then
   # Creating Ubuntu cloud image
+  echo "CREATING IMAGE WITH THE FOLLOWING ELEMENTS " $ubuntu_elements_sequence
   disk-image-create $ubuntu_elements_sequence -o $ubuntu_image_name
   mv $ubuntu_image_name.qcow2 ../
 fi
