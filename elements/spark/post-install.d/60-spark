@@ -47,7 +47,7 @@ echo "MOVING SPARK TO /OPT/"
 mkdir /opt/spark/
 mv $extract_folder/* /opt/spark/
 echo "$SPARK_DOWNLOAD_URL" > /opt/spark/spark_url.txt
-chown -R ubuntu:ubuntu /opt/spark
+#chown -R ubuntu:ubuntu /opt/spark
 
 popd
 rm -Rf $tmp_dir

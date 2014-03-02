@@ -1,0 +1,14 @@
+#!/bin/bash
+
+distro=$(lsb_release -is || :)
+case "$distro" in
+   Ubuntu )
+      chown -R ubuntu:ubuntu /opt/spark
+   ;;
+   * )
+      echo "Unknown distro: $distro. Exiting."
+      exit 1
+   ;;
+esac
+
+exit 0
