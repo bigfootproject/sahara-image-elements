@@ -237,7 +237,7 @@ if [ -z "$PLUGIN" -o "$PLUGIN" = "spark" ]; then
   # Ignoring image type and hadoop version options
   echo "For spark plugin options -i and -v are ignored"
 
-  export DIB_HADOOP_VERSION="2.0.0-mr1-cdh4.5.0"
+  export DIB_HADOOP_VERSION="CDH4"
   export ubuntu_image_name=${ubuntu_spark_image_name:-"ubuntu_sahara_spark_latest"}
 
   ubuntu_elements_sequence="base vm ubuntu hadoop-cdh spark"

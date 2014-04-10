@@ -1,0 +1,33 @@
+#!/bin/bash
+
+distro=$(lsb_release -is || :)
+case "$distro" in
+   Ubuntu )
+      chown -R ubuntu:ubuntu /opt/spark
+      
+      # Setting up JAVA_HOME and PATH for Java not in /usr/bin
+      sudo sed -i '$a # Setting up JAVA_HOME' /etc/profile
+      sudo sed -i '$a export JAVA_HOME=/usr/java/jdk1.7.0_25/' /etc/profile
+      sudo sed -i '$a export PATH=$PATH:/usr/java/jdk1.7.0_25/bin' /etc/profile
+
+      # Updating alternatives for Java
+      sudo update-alternatives --install "/usr/bin/java" "java" "/usr/java/jdk1.7.0_25/bin/java" 1
+      sudo update-alternatives --install "/usr/bin/javac" "javac" "/usr/java/jdk1.7.0_25/bin/javac" 1
+      sudo update-alternatives --install "/usr/bin/javaws" "javaws" "/usr/java/jdk1.7.0_25/bin/javaws" 1
+
+      sudo update-alternatives --set java /usr/java/jdk1.7.0_25/bin/java
+      sudo update-alternatives --set javac /usr/java/jdk1.7.0_25/bin/javac
+      sudo update-alternatives --set javaws /usr/java/jdk1.7.0_25/bin/javaws
+
+   ;;
+   * )
+      echo "Unknown distro: $distro. Exiting."
+      exit 1
+   ;;
+esac
+
+exit 0
+
+
+
+
