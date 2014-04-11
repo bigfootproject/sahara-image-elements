@@ -2,6 +2,10 @@
 
 set -e
 
+export IMAGE_SIZE=$DIB_IMAGE_SIZE
+# This will unset parameter DIB_IMAGE_SIZE for Ubuntu and Fedora vanilla images
+unset DIB_IMAGE_SIZE
+
 # default debug setting should be false
 IMAGE_GENERATION_DEBUG_MODE="false"
 
@@ -136,11 +140,8 @@ popd
 
 if [ -z "$PLUGIN" -o "$PLUGIN" = "vanilla" ]; then
   export JAVA_DOWNLOAD_URL=${JAVA_DOWNLOAD_URL:-"http://download.oracle.com/otn-pub/java/jdk/7u51-b13/jdk-7u51-linux-x64.tar.gz"}
-  if [ -z "$HADOOP_VERSION" -o "$HADOOP_VERSION" = "1" ]; then
-    export OOZIE_DOWNLOAD_URL=${OOZIE_DOWNLOAD_URL:-"http://sahara-files.mirantis.com/oozie-4.0.0.tar.gz"}
-  else
-    export OOZIE_DOWNLOAD_URL=${OOZIE_DOWNLOAD_URL:-"http://sahara-files.mirantis.com/oozie-4.0.0-hadoop-2.3.0.tar.gz"}
-  fi
+  export OOZIE_HADOOP_V1_DOWNLOAD_URL=${OOZIE_HADOOP_V1_DOWNLOAD_URL:-"http://sahara-files.mirantis.com/oozie-4.0.0.tar.gz"}
+  export OOZIE_HADOOP_V2_DOWNLOAD_URL=${OOZIE_HADOOP_V2_DOWNLOAD_URL:-"http://sahara-files.mirantis.com/oozie-4.0.0-hadoop-2.3.0.tar.gz"}
   export EXTJS_DOWNLOAD_URL=${EXTJS_DOWNLOAD_URL:-"http://extjs.com/deploy/ext-2.2.zip"}
   export HIVE_VERSION=${HIVE_VERSION:-"0.11.0"}
 
@@ -209,7 +210,7 @@ if [ -z "$PLUGIN" -o "$PLUGIN" = "vanilla" ]; then
   # - Export link and filename for CentOS cloud image to download
   # - Patameter 'DIB_IMAGE_SIZE' should be specified for CentOS only
   if [ -z "$IMAGE_TYPE" -o "$IMAGE_TYPE" = "centos" ]; then
-    export DIB_IMAGE_SIZE="10"
+    export DIB_IMAGE_SIZE=${IMAGE_SIZE:-"10"}
     # Read Create_CentOS_cloud_image.rst to know how to create CentOS image in qcow2 format
     export BASE_IMAGE_FILE="CentOS-6.5-cloud-init.qcow2"
     export DIB_CLOUD_IMAGES="http://sahara-files.mirantis.com"
@@ -239,6 +240,7 @@ if [ -z "$PLUGIN" -o "$PLUGIN" = "spark" ]; then
 
   export JAVA_DOWNLOAD_URL=${JAVA_DOWNLOAD_URL:-"http://download.oracle.com/otn-pub/java/jdk/7u51-b13/jdk-7u51-linux-x64.tar.gz"}
   export DIB_HADOOP_VERSION="CDH4"
+  unset DIB_IMAGE_SIZE
   export ubuntu_image_name=${ubuntu_spark_image_name:-"ubuntu_sahara_spark_latest"}
 
   ubuntu_elements_sequence="base vm ubuntu java hadoop-cdh spark"
@@ -262,8 +264,8 @@ if [ -z "$PLUGIN" -o "$PLUGIN" = "hdp" ]; then
 
   # Generate HDP images
 
-  # Parameter 'DIB_IMAGE_SIZE' should be specified for Fedora and CentOS
-  export DIB_IMAGE_SIZE="10"
+  # Parameter 'DIB_IMAGE_SIZE' should be specified for CentOS only
+  export DIB_IMAGE_SIZE=${IMAGE_SIZE:-"10"}
 
   # CentOS cloud image:
   # - Disable including 'base' element for CentOS
@@ -331,7 +333,7 @@ if [ -z "$PLUGIN" -o "$PLUGIN" = "idh" ]; then
   # Ignoring image type and hadoop version options
   echo "For idh plugin option -i is ignored"
 
-  export DIB_IMAGE_SIZE="10"
+  export DIB_IMAGE_SIZE=${IMAGE_SIZE:-"10"}
   export BASE_IMAGE_FILE="CentOS-6.4-cloud-init.qcow2"
   export DIB_CLOUD_IMAGES="http://sahara-files.mirantis.com"
 
