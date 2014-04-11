@@ -15,7 +15,7 @@ if [ -z "$SPARK_DOWNLOAD_URL" ]; then
   if [ -z "$DIB_SPARK_VERSION" ]; then
     case "$DIB_HADOOP_VERSION" in
       CDH4)
-        DIB_SPARK_VERSION=0.9.0
+        DIB_SPARK_VERSION=0.9.1
         SPARK_HADOOP_DL=cdh4
         ;;
       *)
@@ -25,27 +25,26 @@ if [ -z "$SPARK_DOWNLOAD_URL" ]; then
     esac
   fi
 
-  SPARK_DOWNLOAD_URL="http://www.apache.org/dist/incubator/spark/spark-$DIB_SPARK_VERSION-incubating/spark-$DIB_SPARK_VERSION-incubating-bin-$SPARK_HADOOP_DL.tgz"
+  SPARK_DOWNLOAD_URL="http://www.apache.org/dist/incubator/spark/spark-$DIB_SPARK_VERSION/spark-$DIB_SPARK_VERSION-bin-$SPARK_HADOOP_DL.tgz"
 fi
 
-echo "DOWNLOADING SPARK"
+echo "Downloading SPARK"
 wget "$SPARK_DOWNLOAD_URL"
 if [ $? -ne 0 ]; then
    echo -e "Could not download spark.\nAborting"
    exit 1
 fi
 
-echo "EXTRACTING SPARK"
+echo "Extracting SPARK"
 spark_file=$(basename "$SPARK_DOWNLOAD_URL")
 extract_folder=$(tar tzf $spark_file | sed -e 's@/.*@@' | uniq)
 echo "Decompressing Spark..."
 tar xzf $spark_file
 rm $spark_file
 
-echo "MOVING SPARK TO /OPT/"
+echo "Moving SPARK to /opt/"
 # Placing spark in /opt/spark
-mkdir /opt/spark/
-mv $extract_folder/* /opt/spark/
+mv $extract_folder /opt/spark
 echo "$SPARK_DOWNLOAD_URL" > /opt/spark/spark_url.txt
 #chown -R ubuntu:ubuntu /opt/spark
 

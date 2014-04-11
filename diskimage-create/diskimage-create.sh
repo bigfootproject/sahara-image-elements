@@ -237,10 +237,11 @@ if [ -z "$PLUGIN" -o "$PLUGIN" = "spark" ]; then
   # Ignoring image type and hadoop version options
   echo "For spark plugin options -i and -v are ignored"
 
+  export JAVA_DOWNLOAD_URL=${JAVA_DOWNLOAD_URL:-"http://download.oracle.com/otn-pub/java/jdk/7u51-b13/jdk-7u51-linux-x64.tar.gz"}
   export DIB_HADOOP_VERSION="CDH4"
   export ubuntu_image_name=${ubuntu_spark_image_name:-"ubuntu_sahara_spark_latest"}
 
-  ubuntu_elements_sequence="base vm ubuntu hadoop-cdh spark"
+  ubuntu_elements_sequence="base vm ubuntu java hadoop-cdh spark"
 
   if [ -n "$USE_MIRRORS" ]; then
     mirror_element=" apt-mirror"

@@ -78,18 +78,8 @@ cat >> /home/hadoop/.bashrc <<EOF
 PATH=$PATH:/usr/sbin:$JAVA_HOME/bin
 JAVA_HOME=$JAVA_HOME
 EOF
-sed -i -e "s,export JAVA_HOME=.*,export JAVA_HOME=$JAVA_HOME," \
-       -e "s,export HADOOP_LOG_DIR=.*,export HADOOP_LOG_DIR=/mnt/log/hadoop/\$USER," \
-       -e "s,export HADOOP_SECURE_DN_LOG_DIR=.*,export HADOOP_SECURE_DN_LOG_DIR=/mnt/log/hadoop/hdfs," \
-    /etc/hadoop/hadoop-env.sh
-
-echo "Applying firstboot script"
-
-if [ "$distro" == "Ubuntu" ]; then
-  # File '/etc/rc.local' may not exist
-  if [ -f "/etc/rc.local" ]; then
-    mv /etc/rc.local /etc/rc.local.old
-  fi
-  install -D -g root -o root -m 0755 $(dirname $0)/firstboot /etc/rc.local
-fi
-
+cat >> /etc/hadoop/hadoop-env.sh <<EOF
+export JAVA_HOME=$JAVA_HOME
+export HADOOP_LOG_DIR=/mnt/log/hadoop/\$USER
+export HADOOP_SECURE_DN_LOG_DIR=/mnt/log/hadoop/hdfs
+EOF
