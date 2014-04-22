@@ -50,13 +50,6 @@ case "$distro" in
       sudo apt-get update
       # Here the script could be expanded to install all CDH packages and not only HDFS.
       install-packages hadoop-hdfs-namenode hadoop-hdfs-datanode
-      # pietro: small hack to fix install problems on ubuntu
-      # the CDH package contains a broken symlink instead of the log4j jar file
-      # these 4 lines should go away once Cloudera fixes the package
-      echo "Fixing install problem for CDH: log4j";
-      wget http://repo1.maven.org/maven2/org/slf4j/slf4j-log4j12/1.6.1/slf4j-log4j12-1.6.1.jar;
-      sudo rm /usr/lib/hadoop/lib/slf4j-log4j12-1.6.1.jar;
-      sudo mv slf4j-log4j12-1.6.1.jar /usr/lib/hadoop/lib/
    ;;
 esac
 rm -r $tmp_dir

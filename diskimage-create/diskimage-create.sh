@@ -25,13 +25,22 @@ while getopts "p:i:v:d:" opt; do
     ;;
     *)
       echo
-      echo "Usage: $(basename $0) [-p vanilla|spark|hdp|idh] [-i ubuntu|fedora|centos] [-v 1|2|plain] [-d true|false]"
-      echo "'-p' is plugin version, '-i' is image type, '-v' is hadoop version, '-d controls the debug mode for image generation (false by default)"
+      echo "Usage: $(basename $0)"
+      echo "         [-p vanilla|spark|hdp]"
+      echo "         [-i ubuntu|fedora|centos]"
+      echo "         [-v 1|2|plain]"
+      echo "         [-d true|false]"
+      echo "   '-p' is plugin version (default: vanilla)"
+      echo "   '-i' is image type (default: all supported by plugin)"
+      echo "   '-v' is hadoop version (default: all supported by plugin)"
+      echo "   '-d' controls the debug mode for image generation (false by default)"
+      echo
       echo "You shouldn't specify hadoop version and image type for spark plugin"
       echo "You shouldn't specify image type for hdp plugin"
       echo "Version 'plain' could be specified for hdp plugin only"
       echo "Debug mode should only be enabled for local debugging purposes, not for production systems"
       echo "By default all images for all plugins will be created"
+      echo
       exit 1
     ;;
   esac
@@ -39,7 +48,7 @@ done
 
 
 # Checks of input
-if [ -n "$PLUGIN" -a "$PLUGIN" != "vanilla" -a "$PLUGIN" != "spark" -a "$PLUGIN" != "hdp" -a "$PLUGIN" != "idh" ]; then
+if [ -n "$PLUGIN" -a "$PLUGIN" != "vanilla" -a "$PLUGIN" != "spark" -a "$PLUGIN" != "hdp" ]; then
   echo -e "Unknown plugin selected.\nAborting"
   exit 1
 fi
@@ -68,10 +77,6 @@ if [ "$PLUGIN" = "vanilla" -a "$HADOOP_VERSION" = "plain" ]; then
   exit 1
 fi
 
-if [ "$PLUGIN" = "idh" -a "$HADOOP_VERSION" = "plain" ]; then
-  echo "Impossible combination.\nAborting"
-  exit 1
-fi
 #################
 
 if [ -e /etc/os-release ]; then
@@ -84,7 +89,7 @@ if [ -e /etc/os-release ]; then
     yum install qemu kpartx git -y
   fi
 else
-  platform=$(head -1 /etc/system-release | grep CentOS || :)
+  platform=$(head -1 /etc/system-release | grep -e CentOS -e 'Red Hat Enterprise Linux' || :)
   if [ -n "$platform" ]; then
     yum update -y
     yum install qemu-kvm qemu-img kpartx git -y
@@ -142,6 +147,7 @@ if [ -z "$PLUGIN" -o "$PLUGIN" = "vanilla" ]; then
   export JAVA_DOWNLOAD_URL=${JAVA_DOWNLOAD_URL:-"http://download.oracle.com/otn-pub/java/jdk/7u51-b13/jdk-7u51-linux-x64.tar.gz"}
   export OOZIE_HADOOP_V1_DOWNLOAD_URL=${OOZIE_HADOOP_V1_DOWNLOAD_URL:-"http://sahara-files.mirantis.com/oozie-4.0.0.tar.gz"}
   export OOZIE_HADOOP_V2_DOWNLOAD_URL=${OOZIE_HADOOP_V2_DOWNLOAD_URL:-"http://sahara-files.mirantis.com/oozie-4.0.0-hadoop-2.3.0.tar.gz"}
+  export HADOOP_V2_NATIVE_LIBS_DOWNLOAD_URL=${HADOOP_V2_NATIVE_LIBS_DOWNLOAD_URL:-"http://sahara-files.mirantis.com/hadoop-2.3.0-native-libs.tar.gz"}
   export EXTJS_DOWNLOAD_URL=${EXTJS_DOWNLOAD_URL:-"http://extjs.com/deploy/ext-2.2.zip"}
   export HIVE_VERSION=${HIVE_VERSION:-"0.11.0"}
 
@@ -151,17 +157,15 @@ if [ -z "$PLUGIN" -o "$PLUGIN" = "vanilla" ]; then
 
   # Workaround for https://bugs.launchpad.net/diskimage-builder/+bug/1204824
   # https://bugs.launchpad.net/sahara/+bug/1252684
-  if [ -z "$IMAGE_TYPE" -o "$IMAGE_TYPE" = "centos" -o "$IMAGE_TYPE" = "fedora" ]; then
-    if [ "$platform" = 'NAME="Ubuntu"' ]; then
-      echo "**************************************************************"
-      echo "WARNING: As a workaround for DIB bug 1204824, you are about to"
-      echo "         create a Fedora and CentOS images that has SELinux    "
-      echo "         disabled. Do not use these images in production.       "
-      echo "**************************************************************"
-      fedora_elements_sequence="$fedora_elements_sequence selinux-permissive"
-      centos_elements_sequence="$centos_elements_sequence selinux-permissive"
-      suffix=".selinux-permissive"
-    fi
+  if [ "$platform" = 'NAME="Ubuntu"' ]; then
+    echo "**************************************************************"
+    echo "WARNING: As a workaround for DIB bug 1204824, you are about to"
+    echo "         create a Fedora and CentOS images that has SELinux    "
+    echo "         disabled. Do not use these images in production.       "
+    echo "**************************************************************"
+    fedora_elements_sequence="$fedora_elements_sequence selinux-permissive"
+    centos_elements_sequence="$centos_elements_sequence selinux-permissive"
+    suffix=".selinux-permissive"
   fi
 
   if [ -n "$USE_MIRRORS" ]; then
@@ -322,47 +326,6 @@ if [ -z "$PLUGIN" -o "$PLUGIN" = "hdp" ]; then
     # generate plain (no Hadoop components) image for testing
     disk-image-create $centos_plain_elements_sequence -n -o $centos_image_name_plain
     mv $centos_image_name_plain.qcow2 ../
-  fi
-fi
-
-########################
-# Image for IDH plugin #
-########################
-
-if [ -z "$PLUGIN" -o "$PLUGIN" = "idh" ]; then
-  # Ignoring image type and hadoop version options
-  echo "For idh plugin option -i is ignored"
-
-  export DIB_IMAGE_SIZE=${IMAGE_SIZE:-"10"}
-  export BASE_IMAGE_FILE="CentOS-6.4-cloud-init.qcow2"
-  export DIB_CLOUD_IMAGES="http://sahara-files.mirantis.com"
-
-  centos_elements_sequence="vm rhel hadoop-idh"
-
-  if [ "$platform" = 'NAME="Ubuntu"' ]; then
-      echo "**************************************************************"
-      echo "WARNING: As a workaround for DIB bug 1204824, you are about to"
-      echo "         create a CentOS image that has SELinux               "
-      echo "         disabled. Do not use these images in production.     "
-      echo "**************************************************************"
-      centos_elements_sequence="$centos_elements_sequence selinux-permissive"
-      suffix=".selinux-permissive"
-  fi
-
-  if [ -z "$HADOOP_VERSION" -o "$HADOOP_VERSION" = "1" ]; then
-    export HADOOP_VERSION="1"
-    export DIB_HADOOP_VERSION="2.5.1"
-    export centos_image_name_idh="centos_sahara_idh_${DIB_HADOOP_VERSION}${suffix}"
-    disk-image-create $centos_elements_sequence -o $centos_image_name_idh
-    mv $centos_image_name_idh.qcow2 ../
-  fi
-
-  if [ -z "$HADOOP_VERSION" -o "$HADOOP_VERSION" = "2" ]; then
-    export HADOOP_VERSION="2"
-    export DIB_HADOOP_VERSION="3.0.2"
-    export centos_image_name_idh="centos_sahara_idh_${DIB_HADOOP_VERSION}${suffix}"
-    disk-image-create $centos_elements_sequence -o $centos_image_name_idh
-    mv $centos_image_name_idh.qcow2 ../
   fi
 fi
 
