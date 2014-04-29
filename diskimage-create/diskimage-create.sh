@@ -6,10 +6,10 @@ export IMAGE_SIZE=$DIB_IMAGE_SIZE
 # This will unset parameter DIB_IMAGE_SIZE for Ubuntu and Fedora vanilla images
 unset DIB_IMAGE_SIZE
 
-# default debug setting should be false
-IMAGE_GENERATION_DEBUG_MODE="false"
+# DEBUG_MODE is set by the -d flag, debug is enabled if the value is "true"
+DEBUG_MODE="false"
 
-while getopts "p:i:v:d:" opt; do
+while getopts "p:i:v:d" opt; do
   case $opt in
     p)
       PLUGIN=$OPTARG
@@ -21,7 +21,7 @@ while getopts "p:i:v:d:" opt; do
       HADOOP_VERSION=$OPTARG
     ;;
     d)
-      IMAGE_GENERATION_DEBUG_MODE=$OPTARG
+      DEBUG_MODE="true"
     ;;
     *)
       echo
@@ -29,11 +29,11 @@ while getopts "p:i:v:d:" opt; do
       echo "         [-p vanilla|spark|hdp]"
       echo "         [-i ubuntu|fedora|centos]"
       echo "         [-v 1|2|plain]"
-      echo "         [-d true|false]"
+      echo "         [-d]"
       echo "   '-p' is plugin version (default: vanilla)"
       echo "   '-i' is image type (default: all supported by plugin)"
       echo "   '-v' is hadoop version (default: all supported by plugin)"
-      echo "   '-d' controls the debug mode for image generation (false by default)"
+      echo "   '-d' enable debug mode, root account will have password 'hadoop'"
       echo
       echo "You shouldn't specify hadoop version and image type for spark plugin"
       echo "You shouldn't specify image type for hdp plugin"
@@ -46,8 +46,24 @@ while getopts "p:i:v:d:" opt; do
   esac
 done
 
+if [ -e /etc/os-release ]; then
+  platform=$(head -1 /etc/os-release)
+else
+  platform=$(head -1 /etc/system-release | grep -e CentOS -e 'Red Hat Enterprise Linux' || :)
+  if [ -z "$platform" ]; then
+    echo -e "Unknown Host OS. Impossible to build images.\nAborting"
+    exit 2
+  fi
+fi
 
 # Checks of input
+if [ "$DEBUG_MODE" = "true" -a "$platform" != 'NAME="Ubuntu"' ]; then
+  if [ "$(getenforce)" != "Disabled" ]; then
+    echo "Debug mode cannot be used from this platform while SELinux is enabled, see https://bugs.launchpad.net/sahara/+bug/1292614"
+    exit 1
+  fi
+fi
+
 if [ -n "$PLUGIN" -a "$PLUGIN" != "vanilla" -a "$PLUGIN" != "spark" -a "$PLUGIN" != "hdp" ]; then
   echo -e "Unknown plugin selected.\nAborting"
   exit 1
@@ -63,15 +79,6 @@ if [ -n "$HADOOP_VERSION" -a "$HADOOP_VERSION" != "1" -a "$HADOOP_VERSION" != "2
   exit 1
 fi
 
-if [ -n "$IMAGE_GENERATION_DEBUG_MODE" -a "$IMAGE_GENERATION_DEBUG_MODE" != "true" -a "$IMAGE_GENERATION_DEBUG_MODE" != "false" ]; then
-  echo -e "Unknown debug mode.\nAborting"
-  exit 1
-else if [ -z "$IMAGE_GENERATION_DEBUG_MODE"  ]; then
-     echo -e "Empty string passed for debug mode.  Invalid input. \nAborting"
-     exit 1
-     fi
-fi
-
 if [ "$PLUGIN" = "vanilla" -a "$HADOOP_VERSION" = "plain" ]; then
   echo "Impossible combination.\nAborting"
   exit 1
@@ -79,24 +86,16 @@ fi
 
 #################
 
-if [ -e /etc/os-release ]; then
-  platform=$(head -1 /etc/os-release)
-  if [ $platform = 'NAME="Ubuntu"' ]; then
-    apt-get update -y
-    apt-get install qemu kpartx git -y
-  elif [ $platform = 'NAME=Fedora' ]; then
-    yum update -y
-    yum install qemu kpartx git -y
-  fi
+if [ "$platform" = 'NAME="Ubuntu"' ]; then
+  apt-get update -y
+  apt-get install qemu kpartx git -y
+elif [ "$platform" = 'NAME=Fedora' ]; then
+  yum update -y
+  yum install qemu kpartx git -y
 else
-  platform=$(head -1 /etc/system-release | grep -e CentOS -e 'Red Hat Enterprise Linux' || :)
-  if [ -n "$platform" ]; then
-    yum update -y
-    yum install qemu-kvm qemu-img kpartx git -y
-  else
-    echo -e "Unknown Host OS. Impossible to build images.\nAborting"
-    exit 2
-  fi
+  # centos or rhel
+  yum update -y
+  yum install qemu-kvm qemu-img kpartx git -y
 fi
 
 base_dir="$(dirname $(readlink -e $0))"
@@ -139,6 +138,12 @@ pushd $SIM_REPO_PATH
 export SAHARA_ELEMENTS_COMMIT_ID=`git rev-parse HEAD`
 popd
 
+if [ "$DEBUG_MODE" = "true" ]; then
+    echo "Using Image Debug Mode, using root-pwd in images, NOT FOR PRODUCTION USAGE."
+    # Each image has a root login, password is "hadoop"
+    export DIB_PASSWORD="hadoop"
+fi
+
 #############################
 # Images for Vanilla plugin #
 #############################
@@ -154,6 +159,12 @@ if [ -z "$PLUGIN" -o "$PLUGIN" = "vanilla" ]; then
   ubuntu_elements_sequence="base vm ubuntu hadoop oozie mysql hive"
   fedora_elements_sequence="base vm fedora hadoop oozie mysql hive disable-firewall"
   centos_elements_sequence="vm rhel hadoop oozie mysql hive redhat-lsb disable-firewall"
+
+  if [ "$DEBUG_MODE" = "true" ]; then
+    ubuntu_elements_sequence="$ubuntu_elements_sequence root-passwd"
+    fedora_elements_sequence="$fedora_elements_sequence root-passwd"
+    centos_elements_sequence="$centos_elements_sequence root-passwd"
+  fi
 
   # Workaround for https://bugs.launchpad.net/diskimage-builder/+bug/1204824
   # https://bugs.launchpad.net/sahara/+bug/1252684
@@ -277,18 +288,12 @@ if [ -z "$PLUGIN" -o "$PLUGIN" = "hdp" ]; then
   export BASE_IMAGE_FILE="CentOS-6.4-cloud-init.qcow2"
   export DIB_CLOUD_IMAGES="http://sahara-files.mirantis.com"
 
-  if [ "$IMAGE_GENERATION_DEBUG_MODE" = "true" ]; then
-      echo "Using HDP Image Debug Mode, using root-pwd in images, NOT FOR PRODUCTION USAGE."
-      # Each image has a root login, password is "hadoop"
-      export DIB_PASSWORD="hadoop"
-  fi
-
   # Ignoring image type option
   if [ -z "$HADOOP_VERSION" -o "$HADOOP_VERSION" = "1" ]; then
     export centos_image_name_hdp_1_3=${centos_hdp_hadoop_1_image_name:-"centos-6_4-64-hdp-1-3"}
     # Elements to include in an HDP-based image
     centos_elements_sequence="vm rhel hadoop-hdp disable-firewall redhat-lsb sahara-version source-repositories yum"
-    if [ "$IMAGE_GENERATION_DEBUG_MODE" = "true" ]; then
+    if [ "$DEBUG_MODE" = "true" ]; then
         # enable the root-pwd element, for simpler local debugging of images
         centos_elements_sequence=$centos_elements_sequence" root-passwd"
     fi
@@ -303,7 +308,7 @@ if [ -z "$PLUGIN" -o "$PLUGIN" = "hdp" ]; then
     export centos_image_name_hdp_2_0=${centos_hdp_hadoop_2_image_name:-"centos-6_4-64-hdp-2-0"}
     # Elements to include in an HDP-based image
     centos_elements_sequence="vm rhel hadoop-hdp disable-firewall redhat-lsb sahara-version source-repositories yum"
-    if  [ "$IMAGE_GENERATION_DEBUG_MODE" = "true" ]; then
+    if  [ "$DEBUG_MODE" = "true" ]; then
         # enable the root-pwd element, for simpler local debugging of images
         centos_elements_sequence=$centos_elements_sequence" root-passwd"
     fi
@@ -317,10 +322,10 @@ if [ -z "$PLUGIN" -o "$PLUGIN" = "hdp" ]; then
   if [ -z "$HADOOP_VERSION" -o "$HADOOP_VERSION" = "plain" ]; then
     export centos_image_name_plain=${centos_hdp_plain_image_name:-"centos-6_4-64-plain"}
     # Elements for a plain CentOS image that does not contain HDP or Apache Hadoop
-    centos_plain_elements_sequence="vm rhel redhat-lsb sahara-version yum"
-    if [ "$IMAGE_GENERATION_DEBUG_MODE" = "true" ]; then
+    centos_plain_elements_sequence="vm rhel redhat-lsb disable-firewall ssh sahara-version yum"
+    if [ "$DEBUG_MODE" = "true" ]; then
         # enable the root-pwd element, for simpler local debugging of images
-        centos_elements_sequence=$centos_elements_sequence" root-passwd"
+        centos_plain_elements_sequence=$centos_plain_elements_sequence" root-passwd"
     fi
 
     # generate plain (no Hadoop components) image for testing

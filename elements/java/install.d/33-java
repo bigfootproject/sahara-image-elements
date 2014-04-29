@@ -51,6 +51,12 @@ EOF
             update-alternatives --set javac /usr/java/$JAVA_NAME/bin/javac
             update-alternatives --set javaws /usr/java/$JAVA_NAME/bin/javaws
          ;;
+         Fedora | RedHatEnterpriseServer | CentOS )
+            alternatives --install /usr/bin/java java /usr/java/$JAVA_NAME/bin/java 200000
+            alternatives --install /usr/bin/javaws javaws /usr/java/$JAVA_NAME/bin/javaws 200000
+            alternatives --install /usr/bin/javac javac /usr/java/$JAVA_NAME/bin/javac 200000
+            alternatives --install /usr/bin/jar jar /usr/java/$JAVA_NAME/bin/jar 200000
+         ;;
       esac
    elif [[ $JAVA_FILE == *.bin ]]; then
       echo -e "\n" | sh $JAVA_FILE
