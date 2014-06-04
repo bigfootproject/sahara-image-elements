@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 # Copyright (c) 2013 Hortonworks, Inc.
 #
@@ -16,17 +16,20 @@
 # limitations under the License.
 
 ##########################################################
-# Element install script for the JDK used in an HDP install
+# Element install script for turning off the Hadoop 2
+#  and yarn services, once the HDP install has completed.
+#
 ##########################################################
 
-#
-# This script installs the JDK
-#
-cd /tmp
-wget https://s3.amazonaws.com/public-repo-1.hortonworks.com/ARTIFACTS/jdk-6u31-linux-x64.bin
-chmod +x /tmp/jdk-6u31-linux-x64.bin
-mkdir -p /opt
-cd /opt
-/tmp/jdk-6u31-linux-x64.bin << EOF
+# Turn off these hadoop services at first boot, since
+#  Ambari will configure the environment before the Hadoop
+#  cluster is started.
 
-EOF
+# This is only necessary for an HDP 2.x install
+if [[ $DIB_HDP_VERSION == "2.0"  ]]; then
+    chkconfig hadoop-mapreduce-historyserver off
+    chkconfig hadoop-yarn-nodemanager off
+    chkconfig hadoop-yarn-proxyserver off
+    chkconfig hadoop-yarn-resourcemanager off
+fi
+

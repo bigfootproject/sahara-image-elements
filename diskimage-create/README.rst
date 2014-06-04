@@ -7,7 +7,7 @@ NOTE: You should use Ubuntu or Fedora host OS for building images, CentOS as a h
 
 For users:
 
-1. Use your environment (export / setenv) to alter the scripts behavior. Environment variables the script accepts are 'DIB_HADOOP_VERSION_1' and 'DIB_HADOOP_VERSION_2', 'JAVA_DOWNLOAD_URL', 'OOZIE_DOWNLOAD_URL', 'HIVE_VERSION', 'ubuntu_[vanilla|spark]_hadoop_[1|2]_image_name', 'fedora_vanilla_hadoop_[1|2]_image_name', 'centos_[vanilla|hdp]_[hadoop_1|hadoop_2|plain]_image_name'.
+1. Use your environment (export / setenv) to alter the scripts behavior. Environment variables the script accepts are 'DIB_HADOOP_VERSION_1' and 'DIB_HADOOP_VERSION_2', 'JAVA_DOWNLOAD_URL', 'JAVA_TARGET_LOCATION', 'OOZIE_DOWNLOAD_URL', 'HIVE_VERSION', 'ubuntu_[vanilla|spark]_hadoop_[1|2]_image_name', 'fedora_vanilla_hadoop_[1|2]_image_name', 'centos_[vanilla|hdp]_[hadoop_1|hadoop_2|plain]_image_name'.
 
 2. For creating all images just clone this repository and run script.
 
@@ -65,3 +65,9 @@ For developers:
 .. sourcecode:: bash
 
   sudo SIM_REPO_PATH="$(pwd)/sahara-image-elements" DIB_REPO_PATH="$(pwd)/diskimage-builder" bash sahara-image-elements/diskimage-create/diskimage-create.sh
+
+3. If you want to specify the diskimage-builder repository branch, or tag, that is used during the diskimage-create script there are two methods. The '-m' option of diskimage-create.sh will always use the 'master' branch of diskimage-builder. Alternatively exporting 'DIB_REPO_BRANCH' will allow the use of an arbitrary branch or tag. By default diskimage-create will use a known good tag from the upstream repository.
+
+.. sourcecode:: bash
+
+  sudo DIB_REPO_BRANCH="custom-branch" bash sahara-image-elements/diskimage-create/diskimage-create.sh

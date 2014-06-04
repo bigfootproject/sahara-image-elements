@@ -9,7 +9,10 @@ unset DIB_IMAGE_SIZE
 # DEBUG_MODE is set by the -d flag, debug is enabled if the value is "true"
 DEBUG_MODE="false"
 
-while getopts "p:i:v:d" opt; do
+# The default tag to use for the DIB repo
+DEFAULT_DIB_REPO_BRANCH="0.1.17"
+
+while getopts "p:i:v:d:m" opt; do
   case $opt in
     p)
       PLUGIN=$OPTARG
@@ -23,6 +26,14 @@ while getopts "p:i:v:d" opt; do
     d)
       DEBUG_MODE="true"
     ;;
+    m)
+      if [ -n "$DIB_REPO_BRANCH" ]; then
+          echo "Error: DIB_REPO_BRANCH set and -m requested, please choose one."
+          exit 3
+      else
+          DIB_REPO_BRANCH="master"
+      fi
+    ;;
     *)
       echo
       echo "Usage: $(basename $0)"
@@ -30,10 +41,12 @@ while getopts "p:i:v:d" opt; do
       echo "         [-i ubuntu|fedora|centos]"
       echo "         [-v 1|2|plain]"
       echo "         [-d]"
+      echo "         [-m]"
       echo "   '-p' is plugin version (default: vanilla)"
       echo "   '-i' is image type (default: all supported by plugin)"
       echo "   '-v' is hadoop version (default: all supported by plugin)"
       echo "   '-d' enable debug mode, root account will have password 'hadoop'"
+      echo "   '-m' set the diskimage-builder repo to the master branch (default: $DEFAULT_DIB_REPO_BRANCH)"
       echo
       echo "You shouldn't specify hadoop version and image type for spark plugin"
       echo "You shouldn't specify image type for hdp plugin"
@@ -45,6 +58,10 @@ while getopts "p:i:v:d" opt; do
     ;;
   esac
 done
+
+if [ -z $DIB_REPO_BRANCH ]; then
+    DIB_REPO_BRANCH=$DEFAULT_DIB_REPO_BRANCH
+fi
 
 if [ -e /etc/os-release ]; then
   platform=$(head -1 /etc/os-release)
@@ -117,6 +134,7 @@ export DIB_IMAGE_CACHE=$TEMP/.cache-image-create
 if [ -z $DIB_REPO_PATH ]; then
   git clone https://git.openstack.org/openstack/diskimage-builder
   DIB_REPO_PATH="$(pwd)/diskimage-builder"
+  git --git-dir=$DIB_REPO_PATH/.git --work-tree=$DIB_REPO_PATH checkout $DIB_REPO_BRANCH
 fi
 
 export PATH=$PATH:$DIB_REPO_PATH/bin
@@ -248,6 +266,7 @@ if [ -z "$PLUGIN" -o "$PLUGIN" = "vanilla" ]; then
       disk-image-create $centos_elements_sequence -n -o $centos_image_name
       mv $centos_image_name.qcow2 ../
     fi
+    unset BASE_IMAGE_FILE DIB_IMAGE_SIZE DIB_CLOUD_IMAGES
   fi
 fi
 
@@ -261,7 +280,6 @@ if [ -z "$PLUGIN" -o "$PLUGIN" = "spark" ]; then
 
   export JAVA_DOWNLOAD_URL=${JAVA_DOWNLOAD_URL:-"http://download.oracle.com/otn-pub/java/jdk/7u51-b13/jdk-7u51-linux-x64.tar.gz"}
   export DIB_HADOOP_VERSION="CDH4"
-  unset DIB_IMAGE_SIZE
   export ubuntu_image_name=${ubuntu_spark_image_name:-"ubuntu_sahara_spark_latest"}
 
   ubuntu_elements_sequence="base vm ubuntu java hadoop-cdh spark"
@@ -294,11 +312,15 @@ if [ -z "$PLUGIN" -o "$PLUGIN" = "hdp" ]; then
   export BASE_IMAGE_FILE="CentOS-6.4-cloud-init.qcow2"
   export DIB_CLOUD_IMAGES="http://sahara-files.mirantis.com"
 
+  # Setup Java Install configuration for the HDP images
+  export JAVA_TARGET_LOCATION=/opt
+  export JAVA_DOWNLOAD_URL=https://s3.amazonaws.com/public-repo-1.hortonworks.com/ARTIFACTS/jdk-6u31-linux-x64.bin
+
   # Ignoring image type option
   if [ -z "$HADOOP_VERSION" -o "$HADOOP_VERSION" = "1" ]; then
     export centos_image_name_hdp_1_3=${centos_hdp_hadoop_1_image_name:-"centos-6_4-64-hdp-1-3"}
     # Elements to include in an HDP-based image
-    centos_elements_sequence="vm rhel hadoop-hdp disable-firewall redhat-lsb sahara-version source-repositories yum"
+    centos_elements_sequence="vm rhel hadoop-hdp redhat-lsb yum"
     if [ "$DEBUG_MODE" = "true" ]; then
         # enable the root-pwd element, for simpler local debugging of images
         centos_elements_sequence=$centos_elements_sequence" root-passwd"
@@ -313,7 +335,7 @@ if [ -z "$PLUGIN" -o "$PLUGIN" = "hdp" ]; then
   if [ -z "$HADOOP_VERSION" -o "$HADOOP_VERSION" = "2" ]; then
     export centos_image_name_hdp_2_0=${centos_hdp_hadoop_2_image_name:-"centos-6_4-64-hdp-2-0"}
     # Elements to include in an HDP-based image
-    centos_elements_sequence="vm rhel hadoop-hdp disable-firewall redhat-lsb sahara-version source-repositories yum"
+    centos_elements_sequence="vm rhel hadoop-hdp redhat-lsb yum"
     if  [ "$DEBUG_MODE" = "true" ]; then
         # enable the root-pwd element, for simpler local debugging of images
         centos_elements_sequence=$centos_elements_sequence" root-passwd"
@@ -328,7 +350,7 @@ if [ -z "$PLUGIN" -o "$PLUGIN" = "hdp" ]; then
   if [ -z "$HADOOP_VERSION" -o "$HADOOP_VERSION" = "plain" ]; then
     export centos_image_name_plain=${centos_hdp_plain_image_name:-"centos-6_4-64-plain"}
     # Elements for a plain CentOS image that does not contain HDP or Apache Hadoop
-    centos_plain_elements_sequence="vm rhel redhat-lsb disable-firewall ssh sahara-version yum"
+    centos_plain_elements_sequence="vm rhel redhat-lsb disable-firewall disable-selinux ssh sahara-version yum"
     if [ "$DEBUG_MODE" = "true" ]; then
         # enable the root-pwd element, for simpler local debugging of images
         centos_plain_elements_sequence=$centos_plain_elements_sequence" root-passwd"
@@ -338,6 +360,7 @@ if [ -z "$PLUGIN" -o "$PLUGIN" = "hdp" ]; then
     disk-image-create $centos_plain_elements_sequence -n -o $centos_image_name_plain
     mv $centos_image_name_plain.qcow2 ../
   fi
+  unset BASE_IMAGE_FILE DIB_IMAGE_SIZE DIB_CLOUD_IMAGES
 fi
 
 popd # out of $TEMP
