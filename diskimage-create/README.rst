@@ -27,7 +27,7 @@ NOTE: Do not create all images for all plugins with the same mirrors. Different 
 
 .. sourcecode:: bash
 
-  sudo bash sahara-image-elements/diskimage-create/diskimage-create.sh -p [vanilla|spark|hdp|cloudera]
+  sudo bash sahara-image-elements/diskimage-create/diskimage-create.sh -p [vanilla|spark|hdp|cloudera|storm|mapr]
 
 5. To select which hadoop version to target use the '-v' commandline option like this:
 
@@ -35,7 +35,7 @@ NOTE: Do not create all images for all plugins with the same mirrors. Different 
 
   sudo bash sahara-image-elements/diskimage-create/diskimage-create.sh -v [1|2|plain]
 
-6. To select which image type to target use the '-i' commandline option like this:
+6. To select which operating system to target use the '-i' commandline option like this:
 
 .. sourcecode:: bash
 
@@ -57,6 +57,10 @@ Resizing disk space during firstboot on that images fails with errors (https://b
   sudo DIB_IMAGE_SIZE=40 bash sahara-image-elements/diskimage-create/diskimage-create.sh -i centos
 
 For all another images parameter DIB_IMAGE_SIZE will be unset.
+
+`DIB_CLOUD_INIT_DATASOURCES` contains a growing collection of data source modules and most are enabled by default.  This causes cloud-init to query each data source
+on first boot.  This can cause delays or even boot problems depending on your environment.
+You must define `DIB_CLOUD_INIT_DATASOURCES` as a comma-separated list of valid data sources to limit the data sources that will be queried for metadata on first boot.
 
 
 For developers:

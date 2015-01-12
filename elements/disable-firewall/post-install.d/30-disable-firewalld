@@ -3,7 +3,5 @@
 install-packages which
 
 if which systemctl; then
-   systemctl disable firewalld
+    systemctl disable firewalld
 fi
-
-: # continue without error
