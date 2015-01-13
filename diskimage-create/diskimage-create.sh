@@ -370,11 +370,18 @@ if [ -z "$PLUGIN" -o "$PLUGIN" = "spark" ]; then
     # Ignoring image type and hadoop version options
     echo "For spark plugin options -i and -v are ignored"
 
-    export JAVA_DOWNLOAD_URL=${JAVA_DOWNLOAD_URL:-"http://download.oracle.com/otn-pub/java/jdk/7u51-b13/jdk-7u51-linux-x64.tar.gz"}
-    export DIB_HADOOP_VERSION="CDH4"
+    # (Un)comment the following for cdh4 OLD Spark images
+    #export DIB_HADOOP_VERSION="CDH4"
+    #export JAVA_DOWNLOAD_URL=${JAVA_DOWNLOAD_URL:-"http://download.oracle.com/otn-pub/java/jdk/7u51-b13/jdk-7u51-linux-x64.tar.gz"}
+    #ubuntu_elements_sequence="base vm ubuntu java hadoop-cdh spark"
+
+    # (Un)comment the following for cdh5 Spark images
+    export DIB_HADOOP_VERSION="CDH5"
+    # Tell the cloudera element to install only hdfs
+    export SPARK_STANDALONE=1
     export ubuntu_image_name=${ubuntu_spark_image_name:-"ubuntu_sahara_spark_latest"}
 
-    ubuntu_elements_sequence="base vm ubuntu java hadoop-cdh spark"
+    ubuntu_elements_sequence="base vm ubuntu hadoop-cloudera spark"
 
     if [ -n "$USE_MIRRORS" ]; then
         [ -n "$UBUNTU_MIRROR" ] && ubuntu_elements_sequence="$ubuntu_elements_sequence apt-mirror"

@@ -4,6 +4,10 @@ set -e
 
 install-packages wget unzip
 
+if [ -n $SPARK_STANDALONE ]; then
+	exit
+fi
+
 OOZIE_WEBAPP_DIRECTORY="${TARGET_ROOT}/var/lib/oozie"
 EXTJS_FILENAME=$(basename $EXTJS_DOWNLOAD_URL)
 pushd $OOZIE_WEBAPP_DIRECTORY

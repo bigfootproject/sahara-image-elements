@@ -7,38 +7,42 @@ if [ $(lsb_release -is) = 'Ubuntu' ]; then
     export RUNLEVEL=1
 fi
 
-install-packages \
-    cloudera-manager-agent \
-    cloudera-manager-daemons \
-    cloudera-manager-server \
-    cloudera-manager-server-db-2 \
-    flume-ng \
-    hadoop-hdfs-datanode \
-    hadoop-hdfs-namenode \
-    hadoop-hdfs-secondarynamenode \
-    hadoop-mapreduce \
-    hadoop-mapreduce-historyserver \
-    hadoop-yarn-nodemanager \
-    hadoop-yarn-resourcemanager \
-    hbase \
-    hbase-solr \
-    hive-hcatalog \
-    hive-metastore \
-    hive-server2 \
-    hive-webhcat-server \
-    hue \
-    impala \
-    impala-server \
-    impala-state-store \
-    impala-catalog \
-    ntp \
-    oozie \
-    oracle-j2sdk1.7 \
-    sentry \
-    solr-server \
-    spark-history-server \
-    sqoop2 \
-    zookeeper
+if [ -n $SPARK_STANDALONE ]; then
+    install-packages ntp oracle-j2sdk1.7 hadoop-hdfs-datanode hadoop-hdfs-namenode
+else
+    install-packages \
+        cloudera-manager-agent \
+        cloudera-manager-daemons \
+        cloudera-manager-server \
+        cloudera-manager-server-db-2 \
+        flume-ng \
+        hadoop-hdfs-datanode \
+        hadoop-hdfs-namenode \
+        hadoop-hdfs-secondarynamenode \
+        hadoop-mapreduce \
+        hadoop-mapreduce-historyserver \
+        hadoop-yarn-nodemanager \
+        hadoop-yarn-resourcemanager \
+        hbase \
+        hbase-solr \
+        hive-hcatalog \
+        hive-metastore \
+        hive-server2 \
+        hive-webhcat-server \
+        hue \
+        impala \
+        impala-server \
+        impala-state-store \
+        impala-catalog \
+        ntp \
+        oozie \
+        oracle-j2sdk1.7 \
+        sentry \
+        solr-server \
+        spark-history-server \
+        sqoop2 \
+        zookeeper
+fi
 
 if [ $(lsb_release -is) = 'Ubuntu' ]; then
     unset RUNLEVEL
