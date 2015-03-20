@@ -380,11 +380,12 @@ if [ -z "$PLUGIN" -o "$PLUGIN" = "spark" ]; then
 
     # (Un)comment the following for cdh5 Spark images
     export DIB_HADOOP_VERSION="CDH5"
+    export DIB_CDH_VERSION="5.3"
     # Tell the cloudera element to install only hdfs
     export SPARK_STANDALONE=1
     export ubuntu_image_name=${ubuntu_spark_image_name:-"ubuntu_sahara_spark_latest"}
 
-    ubuntu_elements_sequence="base vm ubuntu java hadoop-cloudera swift_hadoop spark"
+    ubuntu_elements_sequence="base vm ubuntu hadoop-cloudera swift_hadoop spark"
 
     if [ -n "$USE_MIRRORS" ]; then
         [ -n "$UBUNTU_MIRROR" ] && ubuntu_elements_sequence="$ubuntu_elements_sequence apt-mirror"
