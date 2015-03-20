@@ -15,7 +15,6 @@ else
         cloudera-manager-daemons \
         cloudera-manager-server \
         cloudera-manager-server-db-2 \
-        flume-ng \
         hadoop-hdfs-datanode \
         hadoop-hdfs-namenode \
         hadoop-hdfs-secondarynamenode \
@@ -24,24 +23,34 @@ else
         hadoop-yarn-nodemanager \
         hadoop-yarn-resourcemanager \
         hbase \
-        hbase-solr \
         hive-hcatalog \
         hive-metastore \
         hive-server2 \
         hive-webhcat-server \
         hue \
+        ntp \
+        oozie \
+        oracle-j2sdk1.7 \
+        spark-core \
+        zookeeper
+fi
+
+if [ $DIB_CDH_VERSION != "5.0" ]; then
+    # CDH5.0 does not have below packages.
+    install-packages \
+        flume-ng \
+        hbase-solr \
         impala \
         impala-server \
         impala-state-store \
         impala-catalog \
-        ntp \
-        oozie \
-        oracle-j2sdk1.7 \
+        impala-shell \
         sentry \
         solr-server \
+        solr-doc \
+        search \
         spark-history-server \
-        sqoop2 \
-        zookeeper
+        sqoop2
 fi
 
 if [ $(lsb_release -is) = 'Ubuntu' ]; then

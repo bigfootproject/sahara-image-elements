@@ -74,18 +74,13 @@ EOF
     sed -i -e "s,export JAVA_HOME=.*,export JAVA_HOME=$JAVA_HOME," \
         -e "s,export HADOOP_LOG_DIR=.*,export HADOOP_LOG_DIR=/mnt/log/hadoop/\$USER," \
         -e "s,export HADOOP_SECURE_DN_LOG_DIR=.*,export HADOOP_SECURE_DN_LOG_DIR=/mnt/log/hadoop/hdfs," \
+        -e "s,HADOOP_DATANODE_OPTS=\"-Dhadoop.security.logger=ERROR\,DRFAS \$HADOOP_DATANODE_OPTS\",HADOOP_DATANODE_OPTS=\"-Djava.security.egd=file:/dev/./urandom -Dhadoop.security.logger=ERROR\,DRFAS \$HADOOP_DATANODE_OPTS\"," \
         /etc/hadoop/hadoop-env.sh
 }
 
 
 function install_hadoop_v2 {
     case "$DIB_HADOOP_VERSION" in
-        "2.3.0")
-            hadoop_native_libs_url="${HADOOP_V2_3_NATIVE_LIBS_DOWNLOAD_URL}"
-        ;;
-        "2.4.1")
-            hadoop_native_libs_url="${HADOOP_V2_4_NATIVE_LIBS_DOWNLOAD_URL}"
-        ;;
         "2.6.0")
             hadoop_native_libs_url="${HADOOP_V2_6_NATIVE_LIBS_DOWNLOAD_URL}"
         ;;
