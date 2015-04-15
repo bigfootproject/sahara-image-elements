@@ -19,6 +19,10 @@ if [ -z "${SPARK_DOWNLOAD_URL:-}" ]; then
                 DIB_SPARK_VERSION=1.0.0
                 SPARK_HADOOP_DL=cdh4
                 ;;
+            CDH5)
+                DIB_SPARK_VERSION=1.3.0
+                SPARK_HADOOP_DL=hadoop2.4
+                ;;
             *)
                 echo -e "WARNING: Hadoop version $DIB_HADOOP_VERSION not supported."
                 echo -e "WARNING: make sure SPARK_DOWNLOAD_URL points to a compatible Spark version."
@@ -29,7 +33,7 @@ if [ -z "${SPARK_DOWNLOAD_URL:-}" ]; then
     SPARK_DOWNLOAD_URL="http://archive.apache.org/dist/spark/spark-$DIB_SPARK_VERSION/spark-$DIB_SPARK_VERSION-bin-$SPARK_HADOOP_DL.tgz"
 fi
 
-echo "Downloading SPARK"
+echo "Extracting SPARK"
 spark_file=$(basename "$SPARK_DOWNLOAD_URL")
 cached_tar="$DIB_IMAGE_CACHE/$spark_file"
 $TMP_HOOKS_PATH/bin/cache-url $SPARK_DOWNLOAD_URL $cached_tar
