@@ -1,8 +1,13 @@
 #!/bin/bash
-set -e
 
-if [ -z "$JAVA_DOWNLOAD_URL" ]; then
-    if [ -z "$JAVA_FILE" ]; then
+if [ "${DIB_DEBUG_TRACE:-0}" -gt 0 ]; then
+    set -x
+fi
+set -eu
+set -o pipefail
+
+if [ -z "${JAVA_DOWNLOAD_URL:-}" ]; then
+    if [ -z "${JAVA_FILE:-}" ]; then
         echo "JAVA_FILE and JAVA_DOWNLOAD_URL are not set. Proceeding with distro native Java."
     fi
 fi

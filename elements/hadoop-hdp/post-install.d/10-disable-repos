@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 # Copyright (c) 2013 Hortonworks, Inc.
 #
@@ -25,5 +25,11 @@
 # from going out over the network. It allows Sahara to provision VMs
 # in disconnected mode.
 #
+
+if [ "${DIB_DEBUG_TRACE:-0}" -gt 0 ]; then
+    set -x
+fi
+set -eu
+set -o pipefail
 
 find /etc/yum.repos.d -name "*.repo" -type f | xargs sed "s/enabled=1/enabled=0/" -i

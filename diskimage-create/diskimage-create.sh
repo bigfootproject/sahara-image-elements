@@ -9,11 +9,14 @@ unset DIB_IMAGE_SIZE
 # DEBUG_MODE is set by the -d flag, debug is enabled if the value is "true"
 DEBUG_MODE="false"
 
+# The default tag to use for the dib-utils repo
+DEFAULT_DIB_UTILS_REPO_BRANCH="0.0.9"
+
 # The default tag to use for the DIB repo
-DEFAULT_DIB_REPO_BRANCH="0.1.29"
+DEFAULT_DIB_REPO_BRANCH="0.1.41"
 
 # The default version for a MapR plugin
-DIB_DEFAULT_MAPR_VERSION="4.0.1"
+DIB_DEFAULT_MAPR_VERSION="4.0.2"
 
 # Default list of datasource modules for ubuntu. Workaround for bug #1375645
 export CLOUD_INIT_DATASOURCES=${DIB_CLOUD_INIT_DATASOURCES:-"NoCloud, ConfigDrive, OVF, MAAS, Ec2"}
@@ -24,17 +27,19 @@ usage() {
     echo "         [-p vanilla|spark|hdp|cloudera|storm|mapr]"
     echo "         [-i ubuntu|fedora|centos]"
     echo "         [-v 1|2|2.6|5.0|5.3|plain]"
-    echo "         [-r 3.1.1|4.0.1]"
+    echo "         [-r 3.1.1|4.0.1|4.0.2]"
     echo "         [-d]"
     echo "         [-m]"
     echo "         [-u]"
+    echo "         [-j openjdk|oracle-java]"
     echo "   '-p' is plugin version (default: all plugins)"
     echo "   '-i' is operating system of the base image (default: all supported by plugin)"
     echo "   '-v' is hadoop version (default: all supported by plugin)"
     echo "   '-r' is MapR Version (default: ${DIB_DEFAULT_MAPR_VERSION})"
     echo "   '-d' enable debug mode, root account will have password 'hadoop'"
-    echo "   '-m' set the diskimage-builder repo to the master branch (default: $DEFAULT_DIB_REPO_BRANCH)"
+    echo "   '-m' set the dib-utils and diskimage-builder repos to their master branches (default: dib-utils=$DEFAULT_DIB_UTILS_REPO_BRANCH, dib=$DEFAULT_DIB_REPO_BRANCH)"
     echo "   '-u' install missing packages necessary for building"
+    echo "   '-j' is java distribution (default: openjdk)"
     echo
     echo "You shouldn't specify hadoop version and image type for spark plugin"
     echo "You shouldn't specify image type for hdp plugin"
@@ -45,7 +50,7 @@ usage() {
     exit 1
 }
 
-while getopts "p:i:v:dmur:" opt; do
+while getopts "p:i:v:dmur:j:" opt; do
     case $opt in
         p)
             PLUGIN=$OPTARG
@@ -60,6 +65,12 @@ while getopts "p:i:v:dmur:" opt; do
             DEBUG_MODE="true"
         ;;
         m)
+            if [ -n "$DIB_UTILS_REPO_BRANCH" ]; then
+                echo "Error: DIB_UTILS_REPO_BRANCH set and -m requested, please choose one."
+                exit 3
+            else
+                DIB_UTILS_REPO_BRANCH="master"
+            fi
             if [ -n "$DIB_REPO_BRANCH" ]; then
                 echo "Error: DIB_REPO_BRANCH set and -m requested, please choose one."
                 exit 3
@@ -73,6 +84,9 @@ while getopts "p:i:v:dmur:" opt; do
         u)
             DIB_UPDATE_REQUESTED=true
         ;;
+        j)
+            JAVA_ELEMENT=$OPTARG
+        ;;
         *)
             usage
         ;;
@@ -82,6 +96,12 @@ done
 shift $((OPTIND-1))
 if [ "$1" ]; then
     usage
+fi
+
+JAVA_ELEMENT=${JAVA_ELEMENT:-"openjdk"}
+
+if [ -z $DIB_UTILS_REPO_BRANCH ]; then
+    DIB_UTILS_REPO_BRANCH=$DEFAULT_DIB_UTILS_REPO_BRANCH
 fi
 
 if [ -z $DIB_REPO_BRANCH ]; then
@@ -126,33 +146,40 @@ if [ -n "$HADOOP_VERSION" -a "$HADOOP_VERSION" != "1" -a "$HADOOP_VERSION" != "2
 fi
 
 if [ "$PLUGIN" = "vanilla" -a "$HADOOP_VERSION" = "plain" ]; then
-    echo "Impossible combination.\nAborting"
+    echo -e "Impossible combination.\nAborting"
     exit 1
 fi
 
 if [ "$PLUGIN" = "cloudera" -a "$BASE_IMAGE_OS" = "fedora" ]; then
-    echo "Impossible combination.\nAborting"
+    echo -e "Impossible combination.\nAborting"
     exit 1
 fi
 
 if [ "$PLUGIN" = "mapr" -a "$BASE_IMAGE_OS" = "fedora" ]; then
-    echo "'fedora' image type is not supported by 'mapr' plugin.\nAborting"
+    echo -e "'fedora' image type is not supported by 'mapr' plugin.\nAborting"
     exit 1
 fi
 
 if [ "$PLUGIN" != "mapr" -a -n "$DIB_MAPR_VERSION" ]; then
-    echo "'-r' parameter should be used only with 'mapr' plugin.\nAborting"
+    echo -e "'-r' parameter should be used only with 'mapr' plugin.\nAborting"
     exit 1
 fi
 
 if [ "$PLUGIN" = "mapr" -a -z "$DIB_MAPR_VERSION" ]; then
-    echo "MapR version is not specified.\n"
-    echo "${DIB_DEFAULT_MAPR_VERSION} version would be used.\n"
+    echo "MapR version is not specified"
+    echo "${DIB_DEFAULT_MAPR_VERSION} version would be used"
     DIB_MAPR_VERSION=${DIB_DEFAULT_MAPR_VERSION}
 fi
 
-if [ "$PLUGIN" = "mapr" -a "${DIB_MAPR_VERSION}" != "3.1.1" -a "${DIB_MAPR_VERSION}" != "4.0.1" ]; then
-    echo "Unknown MapR version.\nExit"
+if [ "$PLUGIN" = "mapr" ];  then
+    case "$DIB_MAPR_VERSION" in
+        "3.1.1" | "4.0.1" | "4.0.2") ;;
+        *) echo -e "Unknown MapR version.\nExit"; exit 1 ;;
+    esac
+fi
+
+if [ "$JAVA_ELEMENT" != "openjdk" -a "$JAVA_ELEMENT" != "oracle-java" ]; then
+    echo "Unknown java distro"
     exit 1
 fi
 
@@ -195,16 +222,16 @@ if need_required_packages; then
     # install required packages if requested
     if [ -n "$DIB_UPDATE_REQUESTED" ]; then
         if [ "$platform" = 'NAME="Ubuntu"' ]; then
-            apt-get install $package_list -y
+            sudo apt-get install $package_list -y
         elif [ "$platform" = 'NAME=openSUSE' ]; then
-            zypper --non-interactive --gpg-auto-import-keys in $package_list
+            sudo zypper --non-interactive --gpg-auto-import-keys in $package_list
         else
             # fedora, centos,  and rhel share an install command
             if [ ${platform:0:6} = "CentOS" ]; then
                 # install EPEL repo, in order to install argparse
-                rpm -Uvh --force http://dl.fedoraproject.org/pub/epel/6/x86_64/epel-release-6-8.noarch.rpm
+                sudo rpm -Uvh --force http://dl.fedoraproject.org/pub/epel/6/x86_64/epel-release-6-8.noarch.rpm
             fi
-            yum install $package_list -y
+            sudo yum install $package_list -y
         fi
     else
         echo "Missing one of the following packages: $package_list"
@@ -218,9 +245,21 @@ base_dir="$(dirname $(readlink -e $0))"
 TEMP=$(mktemp -d diskimage-create.XXXXXX)
 pushd $TEMP
 
-export DIB_IMAGE_CACHE=$TEMP/.cache-image-create
-
 # Working with repositories
+# dib-utils repo
+
+if [ -z $DIB_UTILS_REPO_PATH ]; then
+    git clone https://git.openstack.org/openstack/dib-utils
+    DIB_UTILS_REPO_PATH="$(pwd)/dib-utils"
+    git --git-dir=$DIB_UTILS_REPO_PATH/.git --work-tree=$DIB_UTILS_REPO_PATH checkout $DIB_UTILS_REPO_PATH
+fi
+
+export PATH=$PATH:$DIB_UTILS_REPO_PATH/bin
+
+pushd $DIB_UTILS_REPO_PATH
+export DIB_UTILS_COMMIT_ID=`git rev-parse HEAD`
+popd
+
 # disk-image-builder repo
 
 if [ -z $DIB_REPO_PATH ]; then
@@ -265,16 +304,15 @@ fi
 #############################
 
 if [ -z "$PLUGIN" -o "$PLUGIN" = "vanilla" ]; then
-    export JAVA_DOWNLOAD_URL=${JAVA_DOWNLOAD_URL:-"http://download.oracle.com/otn-pub/java/jdk/7u51-b13/jdk-7u51-linux-x64.tar.gz"}
     export OOZIE_HADOOP_V1_DOWNLOAD_URL=${OOZIE_HADOOP_V1_DOWNLOAD_URL:-"http://sahara-files.mirantis.com/oozie-4.0.0.tar.gz"}
     export OOZIE_HADOOP_V2_6_DOWNLOAD_URL=${OOZIE_HADOOP_V2_6_DOWNLOAD_URL:-"http://sahara-files.mirantis.com/oozie-4.0.1-hadoop-2.6.0.tar.gz"}
     export HADOOP_V2_6_NATIVE_LIBS_DOWNLOAD_URL=${HADOOP_V2_6_NATIVE_LIBS_DOWNLOAD_URL:-"http://sahara-files.mirantis.com/hadoop-native-libs-2.6.0.tar.gz"}
     export EXTJS_DOWNLOAD_URL=${EXTJS_DOWNLOAD_URL:-"http://extjs.com/deploy/ext-2.2.zip"}
     export HIVE_VERSION=${HIVE_VERSION:-"0.11.0"}
 
-    ubuntu_elements_sequence="base vm ubuntu hadoop oozie mysql hive"
-    fedora_elements_sequence="base vm fedora redhat-lsb hadoop oozie mysql disable-firewall hive updater"
-    centos_elements_sequence="vm rhel hadoop oozie mysql redhat-lsb disable-firewall hive updater"
+    ubuntu_elements_sequence="base vm ubuntu hadoop oozie mysql hive $JAVA_ELEMENT"
+    fedora_elements_sequence="base vm fedora redhat-lsb hadoop oozie mysql disable-firewall hive updater $JAVA_ELEMENT"
+    centos_elements_sequence="vm rhel hadoop oozie mysql redhat-lsb disable-firewall hive updater $JAVA_ELEMENT"
 
     if [ "$DEBUG_MODE" = "true" ]; then
         ubuntu_elements_sequence="$ubuntu_elements_sequence root-passwd"
@@ -345,6 +383,10 @@ if [ -z "$PLUGIN" -o "$PLUGIN" = "vanilla" ]; then
         # Read Create_CentOS_cloud_image.rst to know how to create CentOS image in qcow2 format
         export BASE_IMAGE_FILE="CentOS-6.6-cloud-init-20141118.qcow2"
         export DIB_CLOUD_IMAGES="http://sahara-files.mirantis.com"
+        # No registration for RHEL-based distros
+        export REG_METHOD=disable
+        # Workaround for https://review.openstack.org/#/c/162239/
+        export REG_HALT_UNREGISTER=1
         if [ -z "$HADOOP_VERSION" -o "$HADOOP_VERSION" = "1" ]; then
             export DIB_HADOOP_VERSION=${DIB_HADOOP_VERSION_1:-"1.2.1"}
             export centos_image_name=${centos_vanilla_hadoop_1_image_name:-"centos_sahara_vanilla_hadoop_1_latest$suffix"}
@@ -358,7 +400,7 @@ if [ -z "$PLUGIN" -o "$PLUGIN" = "vanilla" ]; then
             disk-image-create $centos_elements_sequence -n -o $centos_image_name
             mv $centos_image_name.qcow2 ../
         fi
-        unset BASE_IMAGE_FILE DIB_CLOUD_IMAGES
+        unset BASE_IMAGE_FILE DIB_CLOUD_IMAGES REG_METHOD REG_HALT_UNREGISTER
     fi
 fi
 
@@ -373,11 +415,6 @@ if [ -z "$PLUGIN" -o "$PLUGIN" = "spark" ]; then
     # Ignoring image type and hadoop version options
     echo "For spark plugin options -i and -v are ignored"
 
-    # (Un)comment the following for cdh4 OLD Spark images
-    #export DIB_HADOOP_VERSION="CDH4"
-    #export JAVA_DOWNLOAD_URL=${JAVA_DOWNLOAD_URL:-"http://download.oracle.com/otn-pub/java/jdk/7u51-b13/jdk-7u51-linux-x64.tar.gz"}
-    #ubuntu_elements_sequence="base vm ubuntu java hadoop-cdh spark"
-
     # (Un)comment the following for cdh5 Spark images
     export DIB_HADOOP_VERSION="CDH5"
     export DIB_CDH_VERSION="5.3"
@@ -386,6 +423,7 @@ if [ -z "$PLUGIN" -o "$PLUGIN" = "spark" ]; then
     export ubuntu_image_name=${ubuntu_spark_image_name:-"ubuntu_sahara_spark_latest"}
 
     ubuntu_elements_sequence="base vm ubuntu hadoop-cloudera swift_hadoop spark"
+
 
     if [ -n "$USE_MIRRORS" ]; then
         [ -n "$UBUNTU_MIRROR" ] && ubuntu_elements_sequence="$ubuntu_elements_sequence apt-mirror"
@@ -409,11 +447,10 @@ if [ -z "$PLUGIN" -o "$PLUGIN" = "storm" ]; then
     # Ignoring image type and hadoop version options
     echo "For storm plugin options -i and -v are ignored"
 
-    export JAVA_DOWNLOAD_URL=${JAVA_DOWNLOAD_URL:-"http://download.oracle.com/otn-pub/java/jdk/7u51-b13/jdk-7u51-linux-x64.tar.gz"}
     export DIB_STORM_VERSION=${DIB_STORM_VERSION:-0.9.1}
     export ubuntu_image_name=${ubuntu_storm_image_name:-"ubuntu_sahara_storm_latest_$DIB_STORM_VERSION"}
 
-    ubuntu_elements_sequence="base vm ubuntu java zookeeper storm"
+    ubuntu_elements_sequence="base vm ubuntu $JAVA_ELEMENT zookeeper storm"
 
     if [ -n "$USE_MIRRORS" ]; then
         [ -n "$UBUNTU_MIRROR" ] && ubuntu_elements_sequence="$ubuntu_elements_sequence apt-mirror"
@@ -442,15 +479,16 @@ if [ -z "$PLUGIN" -o "$PLUGIN" = "hdp" ]; then
     export BASE_IMAGE_FILE="CentOS-6.6-cloud-init-20141118.qcow2"
     export DIB_CLOUD_IMAGES="http://sahara-files.mirantis.com"
 
-    # Setup Java Install configuration for the HDP images
-    export JAVA_TARGET_LOCATION=/opt
-    export JAVA_DOWNLOAD_URL=https://s3.amazonaws.com/public-repo-1.hortonworks.com/ARTIFACTS/jdk-6u31-linux-x64.bin
+    # No registration for RHEL-based distros
+    export REG_METHOD=disable
+    # Workaround for https://review.openstack.org/#/c/162239/
+    export REG_HALT_UNREGISTER=1
 
     # Ignoring image type option
     if [ -z "$HADOOP_VERSION" -o "$HADOOP_VERSION" = "1" ]; then
         export centos_image_name_hdp_1_3=${centos_hdp_hadoop_1_image_name:-"centos-6_5-64-hdp-1-3"}
         # Elements to include in an HDP-based image
-        centos_elements_sequence="vm rhel hadoop-hdp redhat-lsb yum updater"
+        centos_elements_sequence="vm rhel hadoop-hdp redhat-lsb yum $JAVA_ELEMENT updater epel"
         if [ "$DEBUG_MODE" = "true" ]; then
             # enable the root-pwd element, for simpler local debugging of images
             centos_elements_sequence=$centos_elements_sequence" root-passwd"
@@ -469,7 +507,7 @@ if [ -z "$PLUGIN" -o "$PLUGIN" = "hdp" ]; then
     if [ -z "$HADOOP_VERSION" -o "$HADOOP_VERSION" = "2" ]; then
         export centos_image_name_hdp_2_0=${centos_hdp_hadoop_2_image_name:-"centos-6_5-64-hdp-2-0"}
         # Elements to include in an HDP-based image
-        centos_elements_sequence="vm rhel hadoop-hdp redhat-lsb yum updater"
+        centos_elements_sequence="vm rhel hadoop-hdp redhat-lsb yum $JAVA_ELEMENT updater epel"
         if    [ "$DEBUG_MODE" = "true" ]; then
             # enable the root-pwd element, for simpler local debugging of images
             centos_elements_sequence=$centos_elements_sequence" root-passwd"
@@ -488,7 +526,7 @@ if [ -z "$PLUGIN" -o "$PLUGIN" = "hdp" ]; then
     if [ -z "$HADOOP_VERSION" -o "$HADOOP_VERSION" = "plain" ]; then
         export centos_image_name_plain=${centos_hdp_plain_image_name:-"centos-6_5-64-plain"}
         # Elements for a plain CentOS image that does not contain HDP or Apache Hadoop
-        centos_plain_elements_sequence="vm rhel redhat-lsb disable-firewall disable-selinux ssh sahara-version yum"
+        centos_plain_elements_sequence="vm rhel redhat-lsb disable-firewall disable-selinux ssh sahara-version yum $JAVA_ELEMENT epel"
         if [ "$DEBUG_MODE" = "true" ]; then
             # enable the root-pwd element, for simpler local debugging of images
             centos_plain_elements_sequence=$centos_plain_elements_sequence" root-passwd"
@@ -502,7 +540,7 @@ if [ -z "$PLUGIN" -o "$PLUGIN" = "hdp" ]; then
         disk-image-create $centos_plain_elements_sequence -n -o $centos_image_name_plain
         mv $centos_image_name_plain.qcow2 ../
     fi
-    unset BASE_IMAGE_FILE DIB_IMAGE_SIZE DIB_CLOUD_IMAGES
+    unset BASE_IMAGE_FILE DIB_IMAGE_SIZE DIB_CLOUD_IMAGES REG_METHOD REG_HALT_UNREGISTER
 fi
 
 #########################
@@ -510,7 +548,6 @@ fi
 #########################
 
 if [ -z "$PLUGIN" -o "$PLUGIN" = "cloudera" ]; then
-    export EXTJS_DOWNLOAD_URL=${EXTJS_DOWNLOAD_URL:-"http://extjs.com/deploy/ext-2.2.zip"}
     if [ -z "$BASE_IMAGE_OS" -o "$BASE_IMAGE_OS" = "ubuntu" ]; then
         if [ -z "$HADOOP_VERSION" -o "$HADOOP_VERSION" = "5.0" ]; then
             cloudera_5_0_ubuntu_image_name=${cloudera_5_0_ubuntu_image_name:-ubuntu_sahara_cloudera_5_0_0}
@@ -545,6 +582,10 @@ if [ -z "$PLUGIN" -o "$PLUGIN" = "cloudera" ]; then
     fi
 
     if [ -z "$BASE_IMAGE_OS" -o "$BASE_IMAGE_OS" = "centos" ]; then
+        # No registration for RHEL-based distros
+        export REG_METHOD=disable
+        # Workaround for https://review.openstack.org/#/c/162239/
+        export REG_HALT_UNREGISTER=1
         if [ -z "$HADOOP_VERSION" -o "$HADOOP_VERSION" = "5.0" ]; then
             # CentOS cloud image:
             # - Disable including 'base' element for CentOS
@@ -585,8 +626,8 @@ if [ -z "$PLUGIN" -o "$PLUGIN" = "cloudera" ]; then
 
             unset BASE_IMAGE_FILE DIB_CLOUD_IMAGES DIB_CDH_VERSION
         fi
+        unset REG_METHOD REG_HALT_UNREGISTER
     fi
-    unset EXTJS_DOWNLOAD_URL
 fi
 
 ##########################
@@ -594,7 +635,7 @@ fi
 ##########################
 if [ -z "$PLUGIN" -o "$PLUGIN" = "mapr" ]; then
     echo "For mapr plugin option -v is ignored"
-    export DIB_MAPR_VERSION=${DIB_MAPR_VERSION:-4.0.1}
+    export DIB_MAPR_VERSION=${DIB_MAPR_VERSION:-${DIB_DEFAULT_MAPR_VERSION}}
 
     export DIB_CLOUD_INIT_DATASOURCES=$CLOUD_INIT_DATASOURCES
 
@@ -602,10 +643,8 @@ if [ -z "$PLUGIN" -o "$PLUGIN" = "mapr" ]; then
     #MapR repository requires additional space
     export DIB_MIN_TMPFS=10
 
-    export JAVA_DOWNLOAD_URL=${JAVA_DOWNLOAD_URL:-"http://download.oracle.com/otn-pub/java/jdk/7u51-b13/jdk-7u51-linux-x64.tar.gz"}
-
-    mapr_ubuntu_elements_sequence="base vm ssh ubuntu hadoop-mapr"
-    mapr_centos_elements_sequence="base vm rhel ssh hadoop-mapr redhat-lsb selinux-permissive updater disable-firewall"
+    mapr_ubuntu_elements_sequence="base vm ssh ubuntu hadoop-mapr $JAVA_ELEMENT"
+    mapr_centos_elements_sequence="base vm rhel ssh hadoop-mapr redhat-lsb selinux-permissive $JAVA_ELEMENT updater disable-firewall"
 
     if [ "$DEBUG_MODE" = "true" ]; then
         mapr_ubuntu_elements_sequence="$mapr_ubuntu_elements_sequence root-passwd"
@@ -631,6 +670,10 @@ if [ -z "$PLUGIN" -o "$PLUGIN" = "mapr" ]; then
     if [ -z "$BASE_IMAGE_OS" -o "$BASE_IMAGE_OS" = "centos" ]; then
         export BASE_IMAGE_FILE=${BASE_IMAGE_FILE:-"CentOS-6.6-cloud-init-20141118.qcow2"}
         export DIB_CLOUD_IMAGES=${DIB_CLOUD_IMAGES:-"http://sahara-files.mirantis.com"}
+        # No registration for RHEL-based distros
+        export REG_METHOD=disable
+        # Workaround for https://review.openstack.org/#/c/162239/
+        export REG_HALT_UNREGISTER=1
 
         mapr_centos_image_name=${mapr_centos_image_name:-centos_6.5_mapr_${DIB_MAPR_VERSION}_latest}
 
@@ -639,6 +682,8 @@ if [ -z "$PLUGIN" -o "$PLUGIN" = "mapr" ]; then
 
         unset BASE_IMAGE_FILE DIB_CLOUD_IMAGES
         unset DIB_CLOUD_INIT_DATASOURCES
+        unset REG_METHOD
+        unset REG_HALT_UNREGISTER
     fi
 fi
 

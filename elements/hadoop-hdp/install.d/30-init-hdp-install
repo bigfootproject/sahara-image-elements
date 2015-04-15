@@ -20,15 +20,16 @@
 #
 ##########################################################
 
+if [ "${DIB_DEBUG_TRACE:-0}" -gt 0 ]; then
+    set -x
+fi
+set -eu
+set -o pipefail
 
 install-packages wget
 install-packages ntp
 
 install-packages bind-utils
-
-cd /tmp
-# ====== EPEL =======
-rpm -Uvh http://dl.fedoraproject.org/pub/epel/6/x86_64/epel-release-6-8.noarch.rpm
 
 #install cloud-inint which is necessary for all images
 install-packages cloud-init

@@ -7,49 +7,30 @@
 # HADOOP-9777 is resolved.
 #   https://issues.apache.org/jira/browse/HADOOP-9777
 
-function download_hadoop_package {
-    echo "Hadoop version $DIB_HADOOP_VERSION will be injected into image. Starting the download"
-    install-packages wget
-    wget -P $tmp_dir "http://archive.apache.org/dist/hadoop/core/hadoop-$DIB_HADOOP_VERSION/$package"
-    if [ $? -ne 0 ]; then
-        echo -e "Could not find Hadoop version $DIB_HADOOP_VERSION.\nAborting"
-        exit 1
-    fi
-}
+if [ "${DIB_DEBUG_TRACE:-0}" -gt 0 ]; then
+    set -x
+fi
+set -eu
+set -o pipefail
 
-function find_java_home {
-    JAVA_HOME=$(find $TARGET_ROOT$JAVA_TARGET_LOCATION/ -maxdepth 1 -name "jdk*")
-
-    if [ -z "$JAVA_HOME" ]; then
-        case "$distro" in
-            Ubuntu )
-                JAVA_HOME=$(readlink -e /usr/bin/java | sed "s:bin/java::")
-            ;;
-            Fedora | RedHatEnterpriseServer | CentOS )
-                JAVA_HOME=$(rpm --eval '%{?java_home}')
-            ;;
-        esac
-    fi
-}
+install-packages wget tar
 
 function install_hadoop_v1 {
-    case "$distro" in
-        Ubuntu )
+    case "$DISTRO_NAME" in
+        ubuntu )
             package="hadoop_$DIB_HADOOP_VERSION-1_x86_64.deb"
         ;;
-        Fedora | RedHatEnterpriseServer | CentOS )
+        fedora | rhel | centos )
             package="hadoop-$DIB_HADOOP_VERSION-1.x86_64.rpm"
         ;;
     esac
 
-    download_hadoop_package
-
-    case "$distro" in
-        Ubuntu )
+    case "$DISTRO_NAME" in
+        ubuntu )
             dpkg -i $tmp_dir/$package
         ;;
-        Fedora | RedHatEnterpriseServer | CentOS )
-            if [ $(lsb_release -rs) -ge '19' ]; then
+        fedora | rhel | centos )
+            if [ "$DISTRO_NAME" = "fedora" ] && [ $(lsb_release -rs) -ge '19' ]; then
                 rpm -i $tmp_dir/$package --relocate /usr=/usr --replacefiles
             else
                 rpm -ivh --replacefiles $tmp_dir/$package
@@ -63,19 +44,18 @@ function install_hadoop_v1 {
     rm -r $tmp_dir
 
     echo "Pre-configuring Hadoop"
-    find_java_home
 
     cat >> /home/hadoop/.bashrc <<EOF
-PATH=\$PATH:/usr/sbin:$JAVA_HOME/bin
-JAVA_HOME=$JAVA_HOME
+PATH=\$PATH:/usr/sbin
 HADOOP_HOME=/usr/share/hadoop/
 EOF
 
-    sed -i -e "s,export JAVA_HOME=.*,export JAVA_HOME=$JAVA_HOME," \
-        -e "s,export HADOOP_LOG_DIR=.*,export HADOOP_LOG_DIR=/mnt/log/hadoop/\$USER," \
+    sed -i -e "s,export HADOOP_LOG_DIR=.*,export HADOOP_LOG_DIR=/mnt/log/hadoop/\$USER," \
         -e "s,export HADOOP_SECURE_DN_LOG_DIR=.*,export HADOOP_SECURE_DN_LOG_DIR=/mnt/log/hadoop/hdfs," \
         -e "s,HADOOP_DATANODE_OPTS=\"-Dhadoop.security.logger=ERROR\,DRFAS \$HADOOP_DATANODE_OPTS\",HADOOP_DATANODE_OPTS=\"-Djava.security.egd=file:/dev/./urandom -Dhadoop.security.logger=ERROR\,DRFAS \$HADOOP_DATANODE_OPTS\"," \
         /etc/hadoop/hadoop-env.sh
+
+    echo "source $JAVA_RC" >> /etc/hadoop/hadoop-env.sh
 }
 
 
@@ -91,8 +71,6 @@ function install_hadoop_v2 {
     esac
 
     package="hadoop-$DIB_HADOOP_VERSION.tar.gz"
-
-    download_hadoop_package
 
     echo "Installing hadoop"
 
@@ -113,16 +91,14 @@ function install_hadoop_v2 {
     rm "$native_libs_filename"
 
     echo "Pre-configuring Hadoop"
-    find_java_home
 
     HADOOP_PID_DIR="/var/run/hadoop"
     mkdir $HADOOP_PID_DIR
     chown hadoop:hadoop $HADOOP_PID_DIR
 
     cat >> /etc/profile.d/hadoop.sh <<EOF
-export JAVA_HOME=$JAVA_HOME
 export HADOOP_COMMON_HOME=$HADOOP_HOME
-export PATH=\$PATH:$JAVA_HOME/bin:$HADOOP_HOME/bin:$HADOOP_HOME/sbin
+export PATH=\$PATH:$HADOOP_HOME/bin:$HADOOP_HOME/sbin
 export HADOOP_HDFS_HOME=\$HADOOP_COMMON_HOME
 export HADOOP_YARN_HOME=\$HADOOP_COMMON_HOME
 export HADOOP_MAPRED_HOME=\$HADOOP_COMMON_HOME
@@ -131,41 +107,38 @@ export YARN_PID_DIR=$HADOOP_PID_DIR
 export HADOOP_MAPRED_PID_DIR=$HADOOP_PID_DIR
 EOF
 
-    sed -i -e "s,export JAVA_HOME=.*,export JAVA_HOME=$JAVA_HOME," \
-        -e "s,\#export HADOOP_LOG_DIR=.*,export HADOOP_LOG_DIR=/mnt/log/hadoop/\$USER," \
+    sed -i -e "s,\#export HADOOP_LOG_DIR=.*,export HADOOP_LOG_DIR=/mnt/log/hadoop/\$USER," \
         -e "s,export HADOOP_SECURE_DN_LOG_DIR=.*,export HADOOP_SECURE_DN_LOG_DIR=/mnt/log/hadoop/hdfs," \
         $HADOOP_HOME/etc/hadoop/hadoop-env.sh
+    echo "source $JAVA_RC" >> $HADOOP_HOME/etc/hadoop/hadoop-env.sh
 
-    sed -i -e "s,\# export JAVA_HOME=.*,export JAVA_HOME=$JAVA_HOME," \
-        -e "s,YARN_LOG_DIR=.*,YARN_LOG_DIR=/mnt/log/hadoop/yarn," \
+    sed -i -e "s,YARN_LOG_DIR=.*,YARN_LOG_DIR=/mnt/log/hadoop/yarn," \
         $HADOOP_HOME/etc/hadoop/yarn-env.sh
+    echo "source $JAVA_RC" >> $HADOOP_HOME/etc/hadoop/yarn-env.sh
 
     # enable swiftfs
     ln -s ${HADOOP_HOME}/share/hadoop/tools/lib/hadoop-openstack-${DIB_HADOOP_VERSION}.jar ${HADOOP_HOME}/share/hadoop/common/lib/
 }
 
-distro=$(lsb_release -is || :)
-if [ ! "$distro" == "Fedora" -a ! "$distro" == "Ubuntu" -a ! "$distro" == "RedHatEnterpriseServer" -a ! "$distro" == "CentOS" ]; then
-    echo "Unknown distro: $distro. Exiting."
+if [ ! "$DISTRO_NAME" == "fedora" -a ! "$DISTRO_NAME" == "ubuntu" -a ! "$DISTRO_NAME" == "rhel" -a ! "$DISTRO_NAME" == "centos" ]; then
+    echo "Unknown distro: $DISTRO_NAME. Exiting."
     exit 1
 fi
 
-echo "Hadoop setup begins for $distro"
+echo "Hadoop setup begins for $DISTRO_NAME"
 tmp_dir=/tmp/hadoop
 
 echo "Creating hadoop user & group"
-case "$distro" in
-    Ubuntu )
+case "$DISTRO_NAME" in
+    ubuntu )
         addgroup hadoop
         adduser --ingroup hadoop --disabled-password --gecos GECOS hadoop
         adduser hadoop sudo
     ;;
-    Fedora | RedHatEnterpriseServer | CentOS )
+    fedora | rhel | centos )
         adduser -G adm,wheel hadoop
     ;;
 esac
-
-: ${JAVA_TARGET_LOCATION:="/usr/java"}
 
 if [[ "$DIB_HADOOP_VERSION" < "2.0.0" ]]; then
     install_hadoop_v1
@@ -176,7 +149,7 @@ fi
 echo "Applying firstboot script"
 
 RC_SCRIPT_DIR=""
-if [ "$distro" == "Ubuntu" ]; then
+if [ "$DISTRO_NAME" == "ubuntu" ]; then
     # File '/etc/rc.local' may not exist
     if [ -f "/etc/rc.local" ]; then
         mv /etc/rc.local /etc/rc.local.old

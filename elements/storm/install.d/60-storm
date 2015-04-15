@@ -2,9 +2,15 @@
 # This script installs storm and its dependencies
 # More documentation on the README.md file
 
+if [ "${DIB_DEBUG_TRACE:-0}" -gt 0 ]; then
+    set -x
+fi
+set -u
+set -o pipefail
+
 install-packages wget unzip build-essential uuid-dev git libtool autoconf pkg-config tar
 
-tmp_dir=/tmp
+tmp_dir=/tmp/storm
 
 echo "Creating Storm User"
 groupadd -g 53001 storm
@@ -13,10 +19,9 @@ useradd -u 53001 -g 53001 -d /app/home/storm -s /bin/bash storm -c "Storm servic
 chmod 700 /app/home/storm
 chage -I -1 -E -1 -m -1 -M -1 -W -1 -E -1 storm
 
-cd $tmp_dir
-echo "Downloading Storm"
+echo "Extracting Storm"
 # The user is not providing his own Spark distribution package
-if [ -z "$STORM_DOWNLOAD_URL" ]; then
+if [ -z "${STORM_DOWNLOAD_URL:-}" ]; then
 # Check storm version
     case "$DIB_STORM_VERSION" in
         0.9.*)
@@ -30,11 +35,12 @@ if [ -z "$STORM_DOWNLOAD_URL" ]; then
     esac
 fi
 
-wget $STORM_DOWNLOAD_URL
+storm_file=$(basename "$STORM_DOWNLOAD_URL")
 cd /usr/local
-tar -xvf /tmp/apache-storm-$DIB_STORM_VERSION-incubating.tar.gz
+tar -xvf $tmp_dir/$storm_file
 chown -R storm:storm apache-storm-$DIB_STORM_VERSION-incubating
 ln -s apache-storm-$DIB_STORM_VERSION-incubating storm
+rm -r $tmp_dir
 
 
 echo "Configuring Storm home"
@@ -46,7 +52,7 @@ echo "Installing Supervisor Deamon"
 
 install-packages supervisor
 update-rc.d supervisor defaults
-chmod 600 /etc/supervisord.conf
+chmod 600 /etc/supervisor/supervisord.conf
 
 mkdir -p /var/log/storm
 chown -R storm:storm /var/log/storm

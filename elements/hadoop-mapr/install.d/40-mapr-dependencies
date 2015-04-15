@@ -1,12 +1,14 @@
 #!/bin/bash
 
-set -eux
+if [ "${DIB_DEBUG_TRACE:-0}" -gt 0 ]; then
+    set -x
+fi
+set -eu
+set -o pipefail
 
 echo "START: installing MapR core dependencies"
 
-DISTRO=$(lsb_release -is || :)
-
-if [ "$DISTRO" = "Ubuntu" ]; then
+if [ "$DISTRO_NAME" = "ubuntu" ]; then
     # Required for libicu48
     cat >> /etc/apt/sources.list.d/security_repo.list << EOF
 deb http://security.ubuntu.com/ubuntu precise-security main
@@ -64,7 +66,7 @@ EOF
     watchdog \
     zlib1g-dev \
     zip
-elif [ "$DISTRO" = 'CentOS' -o "$DISTRO" = 'RedHatEnterpriseServer' ]; then
+elif [ "$DISTRO_NAME" = "centos" -o "$DISTRO_NAME" = "rhel" ]; then
     install-packages cdparanoia-libs \
     cups \
     cups-libs \
@@ -149,6 +151,8 @@ elif [ "$DISTRO" = 'CentOS' -o "$DISTRO" = 'RedHatEnterpriseServer' ]; then
     urw-fonts \
     xml-common \
     zip
+
+    rpm -Uvh ftp://rpmfind.net/linux/centos/6.6/os/x86_64/Packages/libevent-1.4.13-4.el6.x86_64.rpm
 fi
 
 if [ "$?" != "0" ]; then
