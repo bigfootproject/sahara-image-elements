@@ -1,14 +1,16 @@
 Sahara image elements project (Spark experimental fork)
 =======================================================
 
-This repo is a place for Sahara-related for diskimage-builder elements.
-
-This has been forked from the OpenStack repository to develop the Spark support in Sahara. The images created with this version of the DIB,
+This repository has been forked to develop the Spark support in Sahara. The images created with this version of the DIB
 should be used together with the Sahara version available here: https://github.com/bigfootproject/sahara
 
-Images for Spark are created using CDH HDFS and a precompiled Spark from the Apache repositories.
+The changes from the upstream repository include:
 
-For images for all the other Sahara plugin use the standard Sahara DIB.
+- support for more recent versions of Spark
+- Use the Cloudera element to install HDFS from CDH 5.3
+- Other non-Spark elements and image types to support project related to `Bigfoot <http://bigfootproject.eu>`_
+
+To create images for Spark on CDH4 HDFS and for all the other Sahara plugins use the standard Sahara DIB.
 
 You should only need to run this command:
 
