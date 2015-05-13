@@ -98,7 +98,7 @@ if [ "$1" ]; then
     usage
 fi
 
-JAVA_ELEMENT=${JAVA_ELEMENT:-"openjdk"}
+JAVA_ELEMENT=${JAVA_ELEMENT:-"oracle-java"}
 
 if [ -z $DIB_UTILS_REPO_BRANCH ]; then
     DIB_UTILS_REPO_BRANCH=$DEFAULT_DIB_UTILS_REPO_BRANCH
@@ -422,7 +422,7 @@ if [ -z "$PLUGIN" -o "$PLUGIN" = "spark" ]; then
     export SPARK_STANDALONE=1
     export ubuntu_image_name=${ubuntu_spark_image_name:-"ubuntu_sahara_spark_latest"}
 
-    ubuntu_elements_sequence="base vm ubuntu hadoop-cloudera swift_hadoop spark"
+    ubuntu_elements_sequence="base vm ubuntu $JAVA_ELEMENT hadoop-cloudera swift_hadoop spark"
 
 
     if [ -n "$USE_MIRRORS" ]; then

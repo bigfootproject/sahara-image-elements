@@ -12,7 +12,7 @@ if [ "$DISTRO_NAME" = "ubuntu" ]; then
 fi
 
 if [ -n $SPARK_STANDALONE ]; then
-    install-packages ntp oracle-j2sdk1.7 hadoop-hdfs-datanode hadoop-hdfs-namenode
+    install-packages ntp hadoop-hdfs-datanode hadoop-hdfs-namenode
 else
     install-packages \
         cloudera-manager-agent \
