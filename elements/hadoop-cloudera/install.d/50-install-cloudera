@@ -11,9 +11,8 @@ if [ "$DISTRO_NAME" = "ubuntu" ]; then
     export RUNLEVEL=1
 fi
 
-if [ -n $SPARK_STANDALONE ]; then
-    install-packages ntp hadoop-hdfs-datanode hadoop-hdfs-namenode
-else
+# Install the rest of CDH unless a limited HDFS install was requested
+if [ -z "${CDH_HDFS_ONLY:-}" ]; then
     install-packages \
         cloudera-manager-agent \
         cloudera-manager-daemons \
@@ -38,18 +37,18 @@ else
         spark-core \
         zookeeper
 
-    if [ $DIB_CDH_VERSION != "5.0" ]; then
+    if [ $DIB_CDH_VERSION \> "5.0" ]; then
         # CDH5.0 does not have below packages.
         install-packages \
             flume-ng \
-	    hadoop-kms \
+            hadoop-kms \
             hbase-solr \
             impala \
             impala-server \
             impala-state-store \
             impala-catalog \
             impala-shell \
-	    keytrustee-keyprovider \
+            keytrustee-keyprovider \
             sentry \
             solr-server \
             solr-doc \
