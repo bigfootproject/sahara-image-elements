@@ -1,5 +1,11 @@
 #!/bin/bash
 
+if [ "${DIB_DEBUG_TRACE:-0}" -gt 0 ]; then
+    set -x
+fi
+set -eu
+set -o pipefail
+
 function firstboot_common {
     distro=$(lsb_release -is || :)
     case "$distro" in
@@ -17,7 +23,7 @@ function firstboot_common {
             else
                 user=ec2-user
             fi
-            until [[ -n $(grep "$user:" /etc/passwd) && -n $(cat /etc/group | grep "$user:") ]]; do
+            until [[ -n $(grep "$user:" /etc/passwd) && -n $(grep "$user:" /etc/group) ]]; do
                 sleep 1
             done
             chown -R $user:$user /home/$user

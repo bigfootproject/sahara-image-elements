@@ -8,8 +8,6 @@ fi
 set -u
 set -o pipefail
 
-install-packages wget unzip build-essential uuid-dev git libtool autoconf pkg-config tar
-
 tmp_dir=/tmp/storm
 
 echo "Creating Storm User"
@@ -50,7 +48,6 @@ chmod 750 /app/storm
 
 echo "Installing Supervisor Deamon"
 
-install-packages supervisor
 update-rc.d supervisor defaults
 chmod 600 /etc/supervisor/supervisord.conf
 

@@ -27,12 +27,13 @@
 if [ "${DIB_DEBUG_TRACE:-0}" -gt 0 ]; then
     set -x
 fi
-set -u
+set -ue
 set -o pipefail
 
 function install_ganglia {
     # Install ganglia
-    install-packages libganglia ganglia-gmond ganglia-gmond-modules-python ganglia-devel ganglia-gmetad ganglia-web
+    local gv="3.5.0-99"
+    install-packages libganglia-$gv ganglia-gmond-$gv ganglia-gmond-modules-python-$gv ganglia-devel-$gv ganglia-gmetad-$gv ganglia-web-3.5.7-99
 }
 
 function install_mysql {
@@ -130,9 +131,6 @@ function installHDP_2_0 {
     # Install sqoop
     install-packages sqoop
 
-    # Install tez
-    install-packages tez
-
     # Install openssl
     install-packages openssl
 
@@ -149,9 +147,6 @@ function installHDP_2_0 {
 
 
 # Start of Main HDP Install Element
-
-# Make sure wget is installed
-install-packages wget
 
 # Call version-specific script to install the desired version of HDP
 if [[ $DIB_HDP_VERSION == "1.3"  ]]; then
