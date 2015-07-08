@@ -8,6 +8,7 @@ The changes from the upstream repository include:
 
 - support for more recent versions of Spark
 - Use the Cloudera element to install HDFS from CDH 5.3
+- Install Spark Notebook along with Spark
 - Other non-Spark elements and image types to support project related to `Bigfoot <http://bigfootproject.eu>`_
 
 To create images for Spark on CDH4 HDFS and for all the other Sahara plugins use the standard Sahara DIB.
@@ -16,7 +17,7 @@ You should only need to run this command:
 
 .. sourcecode:: bash
 
-    sudo bash diskimage-create.sh -p spark
+    tox -e venv -- sahara-image-create
 
 Note: More information about script `diskimage-create <https://github.com/openstack/sahara-image-elements/blob/master/diskimage-create/README.rst>`_
 
