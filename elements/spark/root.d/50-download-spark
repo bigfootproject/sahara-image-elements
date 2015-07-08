@@ -6,6 +6,10 @@ fi
 set -eu
 set -o pipefail
 
+NOTEBOOK_VERSION="0.5.2"
+SCALA_VERSION="2.10.4"
+NB_HADOOP_DL="unset"
+
 tmp_dir=$TARGET_ROOT/tmp/spark
 mkdir -p $tmp_dir
 
@@ -19,9 +23,11 @@ if [ -z "${SPARK_DOWNLOAD_URL:-}" ]; then
         ;;
         5.3)
             SPARK_HADOOP_DL=hadoop2.4
+            NB_HADOOP_DL=hadoop-2.5.0-cdh5.3.2
         ;;
         5.4)
             SPARK_HADOOP_DL=hadoop2.6
+            NB_HADOOP_DL=hadoop-2.6.0-cdh5.4.2
         ;;
         CDH4)
             SPARK_HADOOP_DL=cdh4
@@ -33,6 +39,7 @@ if [ -z "${SPARK_DOWNLOAD_URL:-}" ]; then
     esac
 
     SPARK_DOWNLOAD_URL="http://archive.apache.org/dist/spark/spark-$DIB_SPARK_VERSION/spark-$DIB_SPARK_VERSION-bin-$SPARK_HADOOP_DL.tgz"
+    NOTEBOOK_DOWNLOAD_URL="https://s3.eu-central-1.amazonaws.com/spark-notebook/tgz/spark-notebook-$NOTEBOOK_VERSION-scala-$SCALA_VERSION-spark-$DIB_SPARK_VERSION-$NB_HADOOP_DL.tgz"
 fi
 
 echo "Downloading SPARK"
@@ -41,3 +48,14 @@ cached_tar="$DIB_IMAGE_CACHE/$spark_file"
 $TMP_HOOKS_PATH/bin/cache-url $SPARK_DOWNLOAD_URL $cached_tar
 sudo install -D -g root -o root -m 0755 $cached_tar $tmp_dir
 echo "$SPARK_DOWNLOAD_URL" > $tmp_dir/spark_url.txt
+
+if [ "$NB_HADOOP_DL" != "unset" ]; then
+    echo "Downloading SPARK Notebook"
+    nb_file=$(basename "$NOTEBOOK_DOWNLOAD_URL")
+    cached_tar="$DIB_IMAGE_CACHE/$nb_file"
+    $TMP_HOOKS_PATH/bin/cache-url $NOTEBOOK_DOWNLOAD_URL $cached_tar
+    sudo install -D -g root -o root -m 0755 $cached_tar $tmp_dir
+    echo "$NOTEBOOK_DOWNLOAD_URL" > $tmp_dir/spark_notebook_url.txt
+else
+    echo "Warning: could not find a notebook package matching the selected spark version, no notebook will be installed"
+fi

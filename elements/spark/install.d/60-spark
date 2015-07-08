@@ -25,5 +25,22 @@ echo "Moving SPARK to /opt/"
 mv $extract_folder /opt/spark/
 mv spark_url.txt /opt/spark/
 
+if [ -f spark_notebook_url.txt ]; then
+    echo "Extracting Spark Noteboook"
+    spark_nb_url=$(cat spark_notebook_url.txt)
+    spark_nb_file=$(basename $spark_nb_url)
+    extract_folder=$(tar tzf $spark_nb_file | sed -e 's@/.*@@' | uniq)
+    echo "Decompressing Spark notebook..."
+    tar xzf $spark_nb_file
+    rm $spark_nb_file
+    
+    echo "Moving Spark notebook to /opt/"
+    # Placing spark notebook in /opt/spark-notebook
+    mv $extract_folder /opt/spark-notebook/
+    mv spark_notebook_url.txt /opt/spark-notebook/
+else
+    echo "Warning: no notebook found, will not install"
+fi
+
 popd
 rm -Rf $tmp_dir
