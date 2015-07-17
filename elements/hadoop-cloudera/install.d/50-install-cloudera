@@ -18,8 +18,6 @@ if [ -z "${CDH_HDFS_ONLY:-}" ]; then
         cloudera-manager-daemons \
         cloudera-manager-server \
         cloudera-manager-server-db-2 \
-        hadoop-hdfs-datanode \
-        hadoop-hdfs-namenode \
         hadoop-hdfs-secondarynamenode \
         hadoop-mapreduce \
         hadoop-mapreduce-historyserver \
@@ -31,7 +29,6 @@ if [ -z "${CDH_HDFS_ONLY:-}" ]; then
         hive-server2 \
         hive-webhcat-server \
         hue \
-        ntp \
         oozie \
         oracle-j2sdk1.7 \
         spark-core \

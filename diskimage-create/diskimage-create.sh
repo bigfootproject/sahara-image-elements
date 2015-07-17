@@ -25,10 +25,10 @@ usage() {
     echo
     echo "Usage: $(basename $0)"
     echo "         [-p vanilla|spark|hdp|cloudera|storm|mapr|plain]"
-    echo "         [-i ubuntu|fedora|centos]"
+    echo "         [-i ubuntu|fedora|centos|centos7]"
     echo "         [-v 1|2|2.6|4|5.0|5.3|5.4]"
     echo "         [-r 3.1.1|4.0.1|4.0.2]"
-    echo "         [-s <any valid Spark version>]"
+    echo "         [-s <Spark version>]"
     echo "         [-d]"
     echo "         [-u]"
     echo "         [-j openjdk|oracle-java]"
@@ -52,7 +52,7 @@ usage() {
     exit 1
 }
 
-while getopts "p:i:v:durs:j:x" opt; do
+while getopts "p:i:v:dur:s:j:x" opt; do
     case $opt in
         p)
             PLUGIN=$OPTARG
@@ -96,17 +96,27 @@ fi
 JAVA_ELEMENT=${JAVA_ELEMENT:-"openjdk"}
 
 if [ -e /etc/os-release ]; then
-    platform=$(head -1 /etc/os-release)
+    platform=$(cat /etc/os-release | awk -F= '/^ID=/ {print tolower($2);}')
+elif [ -e /etc/system-release ]; then
+    case "$(head -1 /etc/system-release)" in
+        "Red Hat Enterprise Linux Server"*)
+            platform=rhel
+            ;;
+        "CentOS"*)
+            platform=centos
+            ;;
+        *)
+            echo -e "Unknown value in /etc/system-release. Impossible to build images.\nAborting"
+            exit 2
+            ;;
+    esac
 else
-    platform=$(head -1 /etc/system-release | grep -e CentOS -e 'Red Hat Enterprise Linux' || :)
-    if [ -z "$platform" ]; then
-        echo -e "Unknown Host OS. Impossible to build images.\nAborting"
-        exit 2
-    fi
+    echo -e "Unknown host OS. Impossible to build images.\nAborting"
+    exit 2
 fi
 
 # Checks of input
-if [ "$DEBUG_MODE" = "true" -a "$platform" != 'NAME="Ubuntu"' ]; then
+if [ "$DEBUG_MODE" = "true" -a "$platform" != 'ubuntu' ]; then
     if [ "$(getenforce)" != "Disabled" ]; then
         echo "Debug mode cannot be used from this platform while SELinux is enabled, see https://bugs.launchpad.net/sahara/+bug/1292614"
         exit 1
@@ -242,7 +252,7 @@ case "$PLUGIN" in
         ;;
     "plain")
         case "$BASE_IMAGE_OS" in
-            "" | "ubuntu" | "fedora" | "centos");;
+            "" | "ubuntu" | "fedora" | "centos" | "centos7");;
             *)
                 echo -e "'$BASE_IMAGE_OS' image type is not supported by '$PLUGIN'.\nAborting"
                 exit 1
@@ -273,7 +283,7 @@ fi
 #################
 
 is_installed() {
-    if [ "$platform" = 'NAME="Ubuntu"' ]; then
+    if [ "$platform" = 'ubuntu' ]; then
         dpkg -s "$1" &> /dev/null
     else
         # centos, fedora, opensuse, or rhel
@@ -282,20 +292,28 @@ is_installed() {
 }
 
 need_required_packages() {
-    if [[ "$platform" == 'NAME="Ubuntu"' ]]; then
-        package_list="qemu kpartx git"
-    elif [ "$platform" = 'NAME=Fedora' ]; then
-        package_list="qemu-img kpartx git"
-    elif [ "$platform" = 'NAME=openSUSE' ]; then
-        package_list="qemu kpartx git-core"
-    else
-        # centos or rhel
-        package_list="qemu-kvm qemu-img kpartx git"
-        if [ ${platform:0:6} = "CentOS" ]; then
-            # CentOS requires the python-argparse package be installed separately
-            package_list="$package_list python-argparse"
-        fi
-    fi
+    case "$platform" in
+        "ubuntu")
+            package_list="qemu kpartx git"
+            ;;
+        "fedora")
+            package_list="qemu-img kpartx git"
+            ;;
+        "opensuse")
+            package_list="qemu kpartx git-core"
+            ;;
+        "rhel" | "centos")
+            package_list="qemu-kvm qemu-img kpartx git"
+            if [ ${platform} = "centos" ]; then
+                # CentOS requires the python-argparse package be installed separately
+                package_list="$package_list python-argparse"
+            fi
+            ;;
+        *)
+            echo -e "Unknown platform '$platform' for the package list.\nAborting"
+            exit 2
+            ;;
+    esac
 
     for p in `echo $package_list`; do
         if ! is_installed $p; then
@@ -308,18 +326,25 @@ need_required_packages() {
 if need_required_packages; then
     # install required packages if requested
     if [ -n "$DIB_UPDATE_REQUESTED" ]; then
-        if [ "$platform" = 'NAME="Ubuntu"' ]; then
-            sudo apt-get install $package_list -y
-        elif [ "$platform" = 'NAME=openSUSE' ]; then
-            sudo zypper --non-interactive --gpg-auto-import-keys in $package_list
-        else
-            # fedora, centos,  and rhel share an install command
-            if [ ${platform:0:6} = "CentOS" ]; then
-                # install EPEL repo, in order to install argparse
-                sudo rpm -Uvh --force http://dl.fedoraproject.org/pub/epel/6/x86_64/epel-release-6-8.noarch.rpm
-            fi
-            sudo yum install $package_list -y
-        fi
+        case "$platform" in
+            "ubuntu")
+                sudo apt-get install $package_list -y
+                ;;
+            "opensuse")
+                sudo zypper --non-interactive --gpg-auto-import-keys in $package_list
+                ;;
+            "fedora" | "rhel" | "centos")
+                if [ ${platform} = "centos" ]; then
+                    # install EPEL repo, in order to install argparse
+                    sudo rpm -Uvh --force http://dl.fedoraproject.org/pub/epel/6/x86_64/epel-release-6-8.noarch.rpm
+                fi
+                sudo yum install $package_list -y
+                ;;
+            *)
+                echo -e "Unknown platform '$platform' for installing packages.\nAborting"
+                exit 2
+                ;;
+        esac
     else
         echo "Missing one of the following packages: $package_list"
         echo "Please install manually or rerun with the update option (-u)."
@@ -356,7 +381,7 @@ if [ -z "$PLUGIN" -o "$PLUGIN" = "vanilla" ]; then
 
     # Workaround for https://bugs.launchpad.net/diskimage-builder/+bug/1204824
     # https://bugs.launchpad.net/sahara/+bug/1252684
-    if [ "$platform" = 'NAME="Ubuntu"' ]; then
+    if [ "$platform" = 'ubuntu' ]; then
         echo "**************************************************************"
         echo "WARNING: As a workaround for DIB bug 1204824, you are about to"
         echo "         create a Fedora and CentOS images that has SELinux    "
@@ -413,10 +438,6 @@ if [ -z "$PLUGIN" -o "$PLUGIN" = "vanilla" ]; then
         # Read Create_CentOS_cloud_image.rst to know how to create CentOS image in qcow2 format
         export BASE_IMAGE_FILE="CentOS-6.6-cloud-init-20141118.qcow2"
         export DIB_CLOUD_IMAGES="http://sahara-files.mirantis.com"
-        # No registration for RHEL-based distros
-        export REG_METHOD=disable
-        # Workaround for https://review.openstack.org/#/c/162239/
-        export REG_HALT_UNREGISTER=1
         if [ -z "$HADOOP_VERSION" -o "$HADOOP_VERSION" = "1" ]; then
             export DIB_HADOOP_VERSION=${DIB_HADOOP_VERSION_1:-"1.2.1"}
             export centos_image_name=${centos_vanilla_hadoop_1_image_name:-"centos_sahara_vanilla_hadoop_1_latest$suffix"}
@@ -428,7 +449,7 @@ if [ -z "$PLUGIN" -o "$PLUGIN" = "vanilla" ]; then
             export centos_image_name=${centos_vanilla_hadoop_2_6_image_name:-"centos_sahara_vanilla_hadoop_2_6_latest$suffix"}
             disk-image-create $TRACING $centos_elements_sequence -o $centos_image_name
         fi
-        unset BASE_IMAGE_FILE DIB_CLOUD_IMAGES REG_METHOD REG_HALT_UNREGISTER
+        unset BASE_IMAGE_FILE DIB_CLOUD_IMAGES
     fi
 fi
 
@@ -441,13 +462,14 @@ if [ -z "$PLUGIN" -o "$PLUGIN" = "spark" ]; then
     export DIB_CLOUD_INIT_DATASOURCES=$CLOUD_INIT_DATASOURCES
     export DIB_SPARK_VERSION
 
+    COMMON_ELEMENTS="vm ubuntu $JAVA_ELEMENT swift_hadoop spark"
     if [ "$DIB_SPARK_VERSION" == "1.0.2" ]; then
         echo "Overriding CDH version, CDH 4 is required for this Spark version"
         export DIB_CDH_VERSION="CDH4"
-        ubuntu_elements_sequence="vm ubuntu $JAVA_ELEMENT hadoop-cdh swift_hadoop spark"
+        ubuntu_elements_sequence="$COMMON_ELEMENTS hadoop-cdh"
     else
         export DIB_CDH_VERSION=$HADOOP_VERSION
-        ubuntu_elements_sequence="vm ubuntu $JAVA_ELEMENT hadoop-cloudera swift_hadoop spark"
+        ubuntu_elements_sequence="$COMMON_ELEMENTS hadoop-cloudera"
     fi
 
     # Tell the cloudera element to install only hdfs
@@ -508,11 +530,6 @@ if [ -z "$PLUGIN" -o "$PLUGIN" = "hdp" ]; then
     export BASE_IMAGE_FILE="CentOS-6.6-cloud-init-20141118.qcow2"
     export DIB_CLOUD_IMAGES="http://sahara-files.mirantis.com"
 
-    # No registration for RHEL-based distros
-    export REG_METHOD=disable
-    # Workaround for https://review.openstack.org/#/c/162239/
-    export REG_HALT_UNREGISTER=1
-
     # Ignoring image type option
     if [ -z "$HADOOP_VERSION" -o "$HADOOP_VERSION" = "1" ]; then
         export centos_image_name_hdp_1_3=${centos_hdp_hadoop_1_image_name:-"centos-6_6-64-hdp-1-3"}
@@ -549,7 +566,7 @@ if [ -z "$PLUGIN" -o "$PLUGIN" = "hdp" ]; then
         export DIB_HDP_VERSION="2.0"
         disk-image-create $TRACING $centos_elements_sequence -o $centos_image_name_hdp_2_0
     fi
-    unset BASE_IMAGE_FILE DIB_IMAGE_SIZE DIB_CLOUD_IMAGES REG_METHOD REG_HALT_UNREGISTER
+    unset BASE_IMAGE_FILE DIB_IMAGE_SIZE DIB_CLOUD_IMAGES
 fi
 
 #########################
@@ -591,7 +608,7 @@ if [ -z "$PLUGIN" -o "$PLUGIN" = "cloudera" ]; then
         fi
         if [ -z "$HADOOP_VERSION" -o "$HADOOP_VERSION" = "5.4" ]; then
             cloudera_5_4_ubuntu_image_name=${cloudera_5_4_ubuntu_image_name:-ubuntu_sahara_cloudera_5_4_0}
-            cloudera_elements_sequence="base vm ubuntu hadoop-cloudera"
+            cloudera_elements_sequence="vm ubuntu hadoop-cloudera"
 
             if [ -n "$USE_MIRRORS" ]; then
                 [ -n "$UBUNTU_MIRROR" ] && ubuntu_elements_sequence="$ubuntu_elements_sequence apt-mirror"
@@ -606,10 +623,6 @@ if [ -z "$PLUGIN" -o "$PLUGIN" = "cloudera" ]; then
     fi
 
     if [ -z "$BASE_IMAGE_OS" -o "$BASE_IMAGE_OS" = "centos" ]; then
-        # No registration for RHEL-based distros
-        export REG_METHOD=disable
-        # Workaround for https://review.openstack.org/#/c/162239/
-        export REG_HALT_UNREGISTER=1
         if [ -z "$HADOOP_VERSION" -o "$HADOOP_VERSION" = "5.0" ]; then
             # CentOS cloud image:
             # - Disable including 'base' element for CentOS
@@ -657,17 +670,16 @@ if [ -z "$PLUGIN" -o "$PLUGIN" = "cloudera" ]; then
             export DIB_CDH_VERSION="5.4"
 
             cloudera_5_4_centos_image_name=${cloudera_5_4_centos_image_name:-centos_sahara_cloudera_5_4_0}
-            cloudera_elements_sequence="base vm rhel hadoop-cloudera selinux-permissive disable-firewall"
+            cloudera_elements_sequence="vm centos hadoop-cloudera selinux-permissive disable-firewall"
 
             if [ -n "$USE_MIRRORS"]; then
                 [ -n "$CENTOS_MIRROR" ] && cloudera_elements_sequence="$cloudera_elements_sequence centos-mirror"
             fi
 
-            disk-image-create $TRACING $cloudera_elements_sequence -n -o $cloudera_5_4_centos_image_name
+            disk-image-create $TRACING $cloudera_elements_sequence -o $cloudera_5_4_centos_image_name
 
             unset BASE_IMAGE_FILE DIB_CLOUD_IMAGES DIB_CDH_VERSION
         fi
-        unset REG_METHOD REG_HALT_UNREGISTER
     fi
     unset DIB_MIN_TMPFS
 fi
@@ -710,10 +722,6 @@ if [ -z "$PLUGIN" -o "$PLUGIN" = "mapr" ]; then
     if [ -z "$BASE_IMAGE_OS" -o "$BASE_IMAGE_OS" = "centos" ]; then
         export BASE_IMAGE_FILE=${BASE_IMAGE_FILE:-"CentOS-6.6-cloud-init-20141118.qcow2"}
         export DIB_CLOUD_IMAGES=${DIB_CLOUD_IMAGES:-"http://sahara-files.mirantis.com"}
-        # No registration for RHEL-based distros
-        export REG_METHOD=disable
-        # Workaround for https://review.openstack.org/#/c/162239/
-        export REG_HALT_UNREGISTER=1
 
         mapr_centos_image_name=${mapr_centos_image_name:-centos_6.5_mapr_${DIB_MAPR_VERSION}_latest}
 
@@ -721,8 +729,6 @@ if [ -z "$PLUGIN" -o "$PLUGIN" = "mapr" ]; then
 
         unset BASE_IMAGE_FILE DIB_CLOUD_IMAGES
         unset DIB_CLOUD_INIT_DATASOURCES
-        unset REG_METHOD
-        unset REG_HALT_UNREGISTER
     fi
 fi
 
@@ -740,11 +746,13 @@ if [ -z "$PLUGIN" -o "$PLUGIN" = "plain" ]; then
     ubuntu_elements_sequence="$common_elements ubuntu"
     fedora_elements_sequence="$common_elements fedora"
     centos_elements_sequence="$common_elements centos disable-firewall disable-selinux"
+    centos7_elements_sequence="$common_elements centos7 disable-firewall disable-selinux"
 
     if [ -n "$USE_MIRRORS" ]; then
         [ -n "$UBUNTU_MIRROR" ] && ubuntu_elements_sequence="$ubuntu_elements_sequence apt-mirror"
         [ -n "$FEDORA_MIRROR" ] && fedora_elements_sequence="$fedora_elements_sequence fedora-mirror"
         [ -n "$CENTOS_MIRROR" ] && centos_elements_sequence="$centos_elements_sequence centos-mirror"
+        [ -n "$CENTOS_MIRROR" ] && centos7_elements_sequence="$centos7_elements_sequence centos-mirror"
     fi
 
     if [ -z "$BASE_IMAGE_OS" -o "$BASE_IMAGE_OS" = "ubuntu" ]; then
@@ -762,17 +770,17 @@ if [ -z "$PLUGIN" -o "$PLUGIN" = "plain" ]; then
     if [ -z "$BASE_IMAGE_OS" -o "$BASE_IMAGE_OS" = "centos" ]; then
         export BASE_IMAGE_FILE=${BASE_IMAGE_FILE:-"CentOS-6.6-cloud-init-20141118.qcow2"}
         export DIB_CLOUD_IMAGES=${DIB_CLOUD_IMAGES:-"http://sahara-files.mirantis.com"}
-        # No registration for RHEL-based distros
-        export REG_METHOD=disable
-        # Workaround for https://review.openstack.org/#/c/162239/
-        export REG_HALT_UNREGISTER=1
 
         plain_image_name=${plain_centos_image_name:-centos_plain}
 
         disk-image-create $TRACING $centos_elements_sequence -o $plain_image_name
 
         unset BASE_IMAGE_FILE DIB_CLOUD_IMAGES
-        unset REG_METHOD
-        unset REG_HALT_UNREGISTER
+    fi
+
+    if [ -z "$BASE_IMAGE_OS" -o "$BASE_IMAGE_OS" = "centos7" ]; then
+        plain_image_name=${plain_centos7_image_name:-centos7_plain}
+
+        disk-image-create $TRACING $centos7_elements_sequence -o $plain_image_name
     fi
 fi

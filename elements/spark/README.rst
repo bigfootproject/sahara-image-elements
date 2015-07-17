@@ -2,13 +2,29 @@
 spark
 =====
 
-Installs Spark on Ubuntu. Requires Hadoop CDH 5 (``hadoop-cloudera`` element).
+Installs Spark on Ubuntu. Requires Hadoop (currently from CDH distribution).
 
-It will install a version of Spark known to be compatible with CDH 5;
-this behaviour can be controlled by using ``SPARK_DOWNLOAD_URL`` to specify
-a download URL for a pre-built Spark tar.gz file, for example for a
-different Spark version. See http://spark.apache.org/downloads.html for more
-download options.
+This element will install Spark into an Ubuntu image. It tries to guess the
+correct file to download based on the ``DIB_SPARK_VERSION`` and ``DIB_CDH_VERSION``
+variables, but this behaviour can be overridden by using ``SPARK_DOWNLOAD_URL``
+to specify a download URL for a pre-built Spark tar.gz file. See
+http://spark.apache.org/downloads.html for more download options.
+
+Versions
+--------
+
+This element is able to generate images containing any valid Spark version,
+compiled against one version of Hadoop HDFS libraries.
+
+Only some combinations of Spark and Hadoop versions are possible, depending on
+the availability of a pre-compiled binary and only few of them are tested with
+the Sahara Spark plugin.
+
+The ``diskimage-create.sh`` script will use tested defaults. Those defaults
+generate an image supported by the Sahara Spark plugin. Other combinations
+should be used only for evaluation or testing purposes. Refer to the Sahara
+Spark plugin wiki page (https://wiki.openstack.org/wiki/Sahara/SparkPlugin)
+for more information about tested and supported versions.
 
 Environment Variables
 ---------------------
