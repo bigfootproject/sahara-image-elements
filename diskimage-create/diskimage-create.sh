@@ -31,6 +31,7 @@ usage() {
     echo "         [-s <Spark version>]"
     echo "         [-d]"
     echo "         [-u]"
+    echo "         [-n]"
     echo "         [-j openjdk|oracle-java]"
     echo "         [-x]"
     echo "   '-p' is plugin version (default: all plugins)"
@@ -40,6 +41,7 @@ usage() {
     echo "   '-s' is Spark version (default: ${DIB_DEFAULT_SPARK_VERSION})"
     echo "   '-d' enable debug mode, root account will have password 'hadoop'"
     echo "   '-u' install missing packages necessary for building"
+    echo "   '-n' include DiNoDB in Spark images"
     echo "   '-j' is java distribution (default: openjdk)"
     echo "   '-x' turns on tracing"
     echo
@@ -52,7 +54,7 @@ usage() {
     exit 1
 }
 
-while getopts "p:i:v:dur:s:j:x" opt; do
+while getopts "p:i:v:dunr:s:j:x" opt; do
     case $opt in
         p)
             PLUGIN=$OPTARG
@@ -74,6 +76,9 @@ while getopts "p:i:v:dur:s:j:x" opt; do
         ;;
         u)
             DIB_UPDATE_REQUESTED=true
+        ;;
+        n)
+            DIB_SPARK_ADD_DINODB=true
         ;;
         j)
             JAVA_ELEMENT=$OPTARG
@@ -461,6 +466,7 @@ if [ -z "$PLUGIN" -o "$PLUGIN" = "spark" ]; then
     export DIB_HDFS_LIB_DIR="/usr/lib/hadoop"
     export DIB_CLOUD_INIT_DATASOURCES=$CLOUD_INIT_DATASOURCES
     export DIB_SPARK_VERSION
+    export DIB_SPARK_ADD_DINODB
 
     COMMON_ELEMENTS="vm ubuntu $JAVA_ELEMENT swift_hadoop spark"
     if [ "$DIB_SPARK_VERSION" == "1.0.2" ]; then
