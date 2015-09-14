@@ -6,7 +6,7 @@ fi
 set -eu
 set -o pipefail
 
-NOTEBOOK_VERSION="0.5.2"
+NOTEBOOK_VERSION="0.6.1"
 SCALA_VERSION="2.10.4"
 NB_HADOOP_DL="unset"
 
@@ -40,7 +40,7 @@ if [ -z "${SPARK_DOWNLOAD_URL:-}" ]; then
     esac
 
     SPARK_DOWNLOAD_URL="http://archive.apache.org/dist/spark/spark-$DIB_SPARK_VERSION/spark-$DIB_SPARK_VERSION-bin-$SPARK_HADOOP_DL.tgz"
-    NOTEBOOK_DOWNLOAD_URL="https://s3.eu-central-1.amazonaws.com/spark-notebook/tgz/spark-notebook-$NOTEBOOK_VERSION-scala-$SCALA_VERSION-spark-$DIB_SPARK_VERSION-$NB_HADOOP_DL.tgz"
+    NOTEBOOK_DOWNLOAD_URL="https://s3.eu-central-1.amazonaws.com/spark-notebook/tgz/spark-notebook-$NOTEBOOK_VERSION-scala-$SCALA_VERSION-spark-$DIB_SPARK_VERSION-$NB_HADOOP_DL-with-parquet.tgz"
 fi
 
 echo "Downloading SPARK"
