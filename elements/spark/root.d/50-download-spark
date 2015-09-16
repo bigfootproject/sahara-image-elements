@@ -9,6 +9,7 @@ set -o pipefail
 NOTEBOOK_VERSION="0.6.1"
 SCALA_VERSION="2.10.4"
 NB_HADOOP_DL="unset"
+DINODB_URL="https://googledrive.com/host/0B2TbBvh6BGVcfkVIaWhZRXZ4dVRYUjBCWkV0WTAxWENxeUMteVowd1JSXzNDb3gza0U5MXM/dinodb.tar.gz"
 
 tmp_dir=$TARGET_ROOT/tmp/spark
 mkdir -p $tmp_dir
@@ -50,13 +51,24 @@ $TMP_HOOKS_PATH/bin/cache-url $SPARK_DOWNLOAD_URL $cached_tar
 sudo install -D -g root -o root -m 0755 $cached_tar $tmp_dir
 echo "$SPARK_DOWNLOAD_URL" > $tmp_dir/spark_url.txt
 
-if [ "$NB_HADOOP_DL" != "unset" ]; then
-    echo "Downloading SPARK Notebook"
-    nb_file=$(basename "$NOTEBOOK_DOWNLOAD_URL")
-    cached_tar="$DIB_IMAGE_CACHE/$nb_file"
-    $TMP_HOOKS_PATH/bin/cache-url $NOTEBOOK_DOWNLOAD_URL $cached_tar
-    sudo install -D -g root -o root -m 0755 $cached_tar $tmp_dir
-    echo "$NOTEBOOK_DOWNLOAD_URL" > $tmp_dir/spark_notebook_url.txt
-else
-    echo "Warning: could not find a notebook package matching the selected spark version, no notebook will be installed"
-fi
+#if [ "$NB_HADOOP_DL" != "unset" ]; then
+#    echo "Downloading SPARK Notebook"
+#    nb_file=$(basename "$NOTEBOOK_DOWNLOAD_URL")
+#    cached_tar="$DIB_IMAGE_CACHE/$nb_file"
+#    $TMP_HOOKS_PATH/bin/cache-url $NOTEBOOK_DOWNLOAD_URL $cached_tar
+#    sudo install -D -g root -o root -m 0755 $cached_tar $tmp_dir
+#    echo "$NOTEBOOK_DOWNLOAD_URL" > $tmp_dir/spark_notebook_url.txt
+#else
+#    echo "Warning: could not find a notebook package matching the selected spark version, no notebook will be installed"
+#fi
+
+echo "Downloading DiNoDB"
+dinodb_file=$(basename "$DINODB_URL")
+cached_tar="$DIB_IMAGE_CACHE/$dinodb_file"
+pushd $TARGET_ROOT/opt
+sudo wget $DINODB_URL
+sudo chown root.root dinodb.tar.gz
+sudo chmod 644 dinodb.tar.gz
+popd
+#sudo install -D -g root -o root -m 0755 $cached_tar $TARGET_ROOT/opt/
+

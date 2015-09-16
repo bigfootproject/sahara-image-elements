@@ -42,5 +42,12 @@ else
     echo "Warning: no notebook found, will not install"
 fi
 
+# DiNoDB
+if [ -n "${DIB_SPARK_ADD_DINODB}" ]; then
+    echo "Decompressing DiNoDB"
+    tar xzf /opt/dinodb.tar.gz
+fi
+
+
 popd
 rm -Rf $tmp_dir
