@@ -43,10 +43,14 @@ else
 fi
 
 # DiNoDB
-if [ -n "${DIB_SPARK_ADD_DINODB}" ]; then
-    echo "Decompressing DiNoDB"
-    tar xzf /opt/dinodb.tar.gz
-fi
+#if [ -n "${DIB_SPARK_ADD_DINODB}" ]; then
+echo "Decompressing DiNoDB"
+tar xzf /opt/dinodb.tar.gz
+echo "Moving DiNoDB in /opt"
+extract_folder=$(tar tzf /opt/dinodb.tar.gz | sed -e 's@/.*@@' | uniq)
+mv $extract_folder /opt/dinodb/
+
+#fi
 
 
 popd
